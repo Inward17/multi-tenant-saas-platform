@@ -11,8 +11,8 @@ export class TasksController {
 
     @Roles('OWNER', 'ADMIN')
     @Post()
-    create(@Body() dto: CreateTaskDto, @CurrentUser('organizationId') orgId: string) {
-        return this.tasksService.create(dto, orgId);
+    create(@Body() dto: CreateTaskDto, @CurrentUser() user: any) {
+        return this.tasksService.create(dto, user.organizationId, user.userId);
     }
 
     @Get()
@@ -21,11 +21,13 @@ export class TasksController {
         @Query('page') page?: string,
         @Query('limit') limit?: string,
         @Query('status') status?: string,
+        @Query('search') search?: string,
     ) {
         return this.tasksService.findAll(orgId, {
             page: page ? +page : undefined,
             limit: limit ? +limit : undefined,
             status,
+            search,
         });
     }
 
@@ -41,7 +43,7 @@ export class TasksController {
 
     @Roles('OWNER', 'ADMIN')
     @Delete(':id')
-    remove(@Param('id') id: string, @CurrentUser('organizationId') orgId: string) {
-        return this.tasksService.remove(id, orgId);
+    remove(@Param('id') id: string, @CurrentUser() user: any) {
+        return this.tasksService.remove(id, user.organizationId, user.userId);
     }
 }

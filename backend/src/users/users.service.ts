@@ -4,11 +4,15 @@ import {
     ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { UpdateRoleDto } from './dto/update-role.dto';
 
 @Injectable()
 export class UsersService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private audit: AuditService,
+    ) { }
 
     async findAll(organizationId: string) {
         return this.prisma.user.findMany({
@@ -44,7 +48,7 @@ export class UsersService {
             throw new ForbiddenException('Cannot change your own role');
         }
 
-        return this.prisma.user.update({
+        const updated = await this.prisma.user.update({
             where: { id: userId },
             data: { role: dto.role as any },
             select: {
@@ -55,5 +59,16 @@ export class UsersService {
                 organizationId: true,
             },
         });
+
+        await this.audit.log({
+            action: 'ROLE_CHANGED',
+            entity: 'User',
+            entityId: userId,
+            userId: currentUser.userId,
+            organizationId: currentUser.organizationId,
+            metadata: { from: targetUser.role, to: dto.role, targetEmail: targetUser.email },
+        });
+
+        return updated;
     }
 }

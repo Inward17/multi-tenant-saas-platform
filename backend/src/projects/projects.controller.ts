@@ -11,8 +11,8 @@ export class ProjectsController {
 
     @Roles('OWNER', 'ADMIN')
     @Post()
-    create(@Body() dto: CreateProjectDto, @CurrentUser('organizationId') orgId: string) {
-        return this.projectsService.create(dto, orgId);
+    create(@Body() dto: CreateProjectDto, @CurrentUser() user: any) {
+        return this.projectsService.create(dto, user.organizationId, user.userId);
     }
 
     @Get()
@@ -33,7 +33,7 @@ export class ProjectsController {
 
     @Roles('OWNER')
     @Delete(':id')
-    remove(@Param('id') id: string, @CurrentUser('organizationId') orgId: string) {
-        return this.projectsService.remove(id, orgId);
+    remove(@Param('id') id: string, @CurrentUser() user: any) {
+        return this.projectsService.remove(id, user.organizationId, user.userId);
     }
 }
