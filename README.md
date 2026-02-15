@@ -1,98 +1,219 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 🏢 Multi-Tenant Task Management API (Backend)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A production-ready multi-tenant SaaS backend built with NestJS,
+PostgreSQL, and Prisma.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+This API supports organization-based data isolation, JWT authentication,
+and role-based access control (RBAC).
 
-## Description
+------------------------------------------------------------------------
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 🚀 Tech Stack
 
-## Project setup
+-   Framework: NestJS v11
+-   Database: PostgreSQL
+-   ORM: Prisma 7
+-   Authentication: JWT (httpOnly cookie)
+-   Language: TypeScript
 
-```bash
-$ npm install
+------------------------------------------------------------------------
+
+## 🧠 Core Architecture
+
+This system follows strict multi-tenant architecture:
+
+-   Each user belongs to one organization
+-   All queries are scoped by `organizationId`
+-   `organizationId` is extracted from JWT (never from client input)
+-   Role-based access control enforced via global guards
+
+### Request Flow
+
+Client → JWT Guard → Roles Guard → Controller → Service → Prisma →
+PostgreSQL
+
+------------------------------------------------------------------------
+
+## 🏗 Features
+
+### ✅ Multi-Tenancy
+
+-   Data isolation per organization
+-   No cross-organization access possible
+-   organizationId enforced in every query
+
+### 🔐 Authentication
+
+-   Register (creates organization + owner)
+-   Login
+-   JWT stored in httpOnly cookie
+-   Global authentication guard
+-   Public route decorator support
+
+### 🛡 Role-Based Access Control (RBAC)
+
+Roles: - OWNER - ADMIN - MEMBER
+
+Access rules enforced via custom `@Roles()` decorator and global
+`RolesGuard`.
+
+### 📦 Modular Design
+
+Modules: - Auth - Organizations - Users - Projects - Tasks - Common
+(guards, decorators)
+
+### 📊 Pagination & Filtering
+
+-   Task pagination
+-   Status filtering
+-   Meta response included
+
+### 🧾 Validation & Error Handling
+
+-   Global ValidationPipe
+-   DTO validation using class-validator
+-   No raw database errors exposed
+-   Proper HTTP exception mapping
+
+------------------------------------------------------------------------
+
+## 🗄 Database Design
+
+### Entities
+
+**Organization** - id (UUID) - name - createdAt
+
+**User** - id (UUID) - email (unique) - password (hashed) - role (OWNER
+\| ADMIN \| MEMBER) - organizationId (FK)
+
+**Project** - id (UUID) - name - organizationId (FK)
+
+**Task** - id (UUID) - title - description - status (TODO \| IN_PROGRESS
+\| DONE) - projectId (FK) - assignedTo (FK, nullable) - organizationId
+(FK) - createdAt - updatedAt
+
+### Key Decisions
+
+-   UUID primary keys (better for distributed systems)
+-   Cascade deletes for organization hierarchy
+-   Direct organizationId on Task for efficient filtering
+-   onDelete: SetNull for task assignee
+
+------------------------------------------------------------------------
+
+## 🔐 Security Design
+
+-   JWT stored in httpOnly cookie
+-   organizationId derived from signed token
+-   Guards registered globally
+-   Strict whitelist DTO validation
+-   Role-based endpoint restrictions
+-   No sensitive fields returned (e.g., passwords)
+
+------------------------------------------------------------------------
+
+## 📡 API Endpoints
+
+### Auth
+
+  Method   Endpoint         Description
+  -------- ---------------- -----------------------------
+  POST     /auth/register   Create organization + owner
+  POST     /auth/login      Login and receive JWT
+
+------------------------------------------------------------------------
+
+### Organizations
+
+  Method   Endpoint         Roles
+  -------- ---------------- -------------------
+  GET      /organizations   Any authenticated
+  PATCH    /organizations   OWNER
+  DELETE   /organizations   OWNER
+
+------------------------------------------------------------------------
+
+### Users
+
+  Method   Endpoint          Roles
+  -------- ----------------- --------------
+  GET      /users            OWNER, ADMIN
+  PATCH    /users/:id/role   OWNER
+
+------------------------------------------------------------------------
+
+### Projects
+
+  Method   Endpoint        Roles
+  -------- --------------- -------------------
+  POST     /projects       OWNER, ADMIN
+  GET      /projects       Any authenticated
+  GET      /projects/:id   Any authenticated
+  PATCH    /projects/:id   OWNER, ADMIN
+  DELETE   /projects/:id   OWNER
+
+------------------------------------------------------------------------
+
+### Tasks
+
+  Method   Endpoint     Roles
+  -------- ------------ --------------------------------
+  POST     /tasks       OWNER, ADMIN
+  GET      /tasks       Any authenticated
+  GET      /tasks/:id   Any authenticated
+  PATCH    /tasks/:id   ADMIN (any), MEMBER (own only)
+  DELETE   /tasks/:id   OWNER, ADMIN
+
+------------------------------------------------------------------------
+
+## ⚙️ Environment Variables
+
+Create a `.env` file in the root:
+
+    DATABASE_URL="postgresql://user:password@localhost:5432/dbname"
+    JWT_SECRET="your_jwt_secret"
+
+------------------------------------------------------------------------
+
+## 🛠 Setup & Installation
+
+``` bash
+# Install dependencies
+npm install
+
+# Run database migrations
+npx prisma migrate dev
+
+# Generate Prisma client
+npx prisma generate
+
+# Start development server
+npm run start:dev
 ```
 
-## Compile and run the project
+Server runs on:
 
-```bash
-# development
-$ npm run start
+http://localhost:3000
 
-# watch mode
-$ npm run start:dev
+------------------------------------------------------------------------
 
-# production mode
-$ npm run start:prod
+## 🧪 Production Build
+
+``` bash
+npm run build
+npm run start:prod
 ```
 
-## Run tests
+------------------------------------------------------------------------
 
-```bash
-# unit tests
-$ npm run test
+## 🎯 What This Project Demonstrates
 
-# e2e tests
-$ npm run test:e2e
+-   Modular NestJS architecture
+-   Multi-tenant SaaS design
+-   Secure JWT authentication
+-   Role-based access control
+-   Proper separation of concerns
+-   Clean database relationships
+-   Production-ready validation & error handling
 
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+------------------------------------------------------------------------
