@@ -10,7 +10,13 @@ export class OrganizationsService {
         const org = await this.prisma.organization.findUnique({
             where: { id: organizationId },
             include: {
-                _count: { select: { users: true, projects: true, tasks: true } },
+                _count: {
+                    select: {
+                        users: true,
+                        projects: { where: { deletedAt: null } },
+                        tasks: { where: { deletedAt: null } },
+                    },
+                },
             },
         });
         if (!org) {

@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
 
-# Production logic / Build outputs
+# Production / Build outputs
 dist/
 build/
 .svelte-kit/
@@ -46,3 +46,6 @@ tmp/
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Docker (local volumes / overrides)
+docker-compose.override.yml
