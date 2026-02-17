@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TasksService } from './tasks.service';
 import { TasksRepository } from './tasks.repository';
 import { AuditService } from '../audit/audit.service';
+import { EventsGateway } from '../events/events.gateway';
+import { getQueueToken } from '@nestjs/bullmq';
 import { NotFoundException, ForbiddenException } from '@nestjs/common';
 
 describe('TasksService', () => {
@@ -18,6 +20,12 @@ describe('TasksService', () => {
         findUserInOrg: jest.Mock;
     };
     let audit: { log: jest.Mock };
+    let eventsGateway: {
+        broadcastTaskCreated: jest.Mock;
+        broadcastTaskUpdated: jest.Mock;
+        broadcastTaskDeleted: jest.Mock;
+    };
+    let notificationsQueue: { add: jest.Mock };
 
     beforeEach(async () => {
         repo = {
@@ -32,12 +40,20 @@ describe('TasksService', () => {
             findUserInOrg: jest.fn(),
         };
         audit = { log: jest.fn().mockResolvedValue({}) };
+        eventsGateway = {
+            broadcastTaskCreated: jest.fn(),
+            broadcastTaskUpdated: jest.fn(),
+            broadcastTaskDeleted: jest.fn(),
+        };
+        notificationsQueue = { add: jest.fn().mockResolvedValue({}) };
 
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 TasksService,
                 { provide: TasksRepository, useValue: repo },
                 { provide: AuditService, useValue: audit },
+                { provide: EventsGateway, useValue: eventsGateway },
+                { provide: getQueueToken('notifications'), useValue: notificationsQueue },
             ],
         }).compile();
 

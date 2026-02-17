@@ -1,8 +1,10 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
     import { page } from "$app/stores";
+    import { onMount, onDestroy } from "svelte";
     import { logout } from "$lib/api/auth";
     import { setUser, clearUser } from "$lib/stores/auth";
+    import { connectSocket, disconnectSocket } from "$lib/realtime/socket";
     import Badge from "$lib/components/ui/Badge.svelte";
     import type { LayoutData } from "./$types";
 
@@ -11,6 +13,9 @@
     $effect(() => {
         if (data.user) setUser(data.user);
     });
+
+    onMount(() => connectSocket());
+    onDestroy(() => disconnectSocket());
 
     let sidebarCollapsed = $state(false);
 
@@ -40,6 +45,11 @@
             label: "Team",
             icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
         },
+        {
+            href: "/dashboard/activity",
+            label: "Activity",
+            icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+        },
     ];
 
     function isActive(href: string) {
@@ -61,6 +71,7 @@
         if (path.startsWith("/dashboard/tasks")) return "Tasks";
         if (path.startsWith("/dashboard/profile")) return "Profile";
         if (path.startsWith("/dashboard/team")) return "Team";
+        if (path.startsWith("/dashboard/activity")) return "Activity";
         return "Dashboard";
     }
 

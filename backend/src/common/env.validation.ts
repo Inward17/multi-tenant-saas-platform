@@ -16,4 +16,7 @@ export const envValidationSchema = Joi.object({
     NODE_ENV: Joi.string()
         .valid('development', 'production', 'test')
         .default('development'),
+
+    REDIS_URL: Joi.string().default('redis://localhost:6379')
+        .description('Redis connection URL for WebSocket and BullMQ'),
 });

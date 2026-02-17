@@ -3,8 +3,11 @@ import {
     NotFoundException,
     ForbiddenException,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { TasksRepository } from './tasks.repository';
 import { AuditService } from '../audit/audit.service';
+import { EventsGateway } from '../events/events.gateway';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 
@@ -13,6 +16,8 @@ export class TasksService {
     constructor(
         private repo: TasksRepository,
         private audit: AuditService,
+        private eventsGateway: EventsGateway,
+        @InjectQueue('notifications') private notificationsQueue: Queue,
     ) { }
 
     async create(dto: CreateTaskDto, organizationId: string, userId?: string) {
@@ -33,25 +38,47 @@ export class TasksService {
             organizationId,
         });
 
+        // Resolve performer email for audit context
+        const performer = userId ? await this.repo.findUserInOrg(userId, organizationId) : null;
+        const performerEmail = performer?.email || 'system';
+
+        // Audit
         await this.audit.log({
             action: 'TASK_CREATED',
             entity: 'Task',
             entityId: task.id,
             userId: userId || 'system',
             organizationId,
-            metadata: { title: dto.title, projectId: dto.projectId },
+            metadata: { title: dto.title, projectId: dto.projectId, performerEmail },
         });
 
         if (dto.assignedTo) {
+            const assignee = await this.repo.findUserInOrg(dto.assignedTo, organizationId);
             await this.audit.log({
                 action: 'TASK_ASSIGNED',
                 entity: 'Task',
                 entityId: task.id,
                 userId: userId || 'system',
                 organizationId,
-                metadata: { assignedTo: dto.assignedTo },
+                metadata: {
+                    taskTitle: dto.title,
+                    assignedTo: dto.assignedTo,
+                    assigneeEmail: assignee?.email || dto.assignedTo,
+                    performerEmail,
+                },
+            });
+
+            // Queue async notification
+            await this.notificationsQueue.add('task-assigned', {
+                taskId: task.id,
+                taskTitle: dto.title,
+                assignedTo: dto.assignedTo,
+                assignedBy: userId || 'system',
             });
         }
+
+        // Broadcast real-time
+        this.eventsGateway.broadcastTaskCreated(organizationId, task);
 
         return task;
     }
@@ -102,27 +129,66 @@ export class TasksService {
 
         const updated = await this.repo.update(id, dto as any);
 
+        // Audit + Queue for assignment changes
         if (dto.assignedTo && dto.assignedTo !== task.assignedTo) {
+            const assignee = await this.repo.findUserInOrg(dto.assignedTo, currentUser.organizationId);
+            const performer = await this.repo.findUserInOrg(currentUser.userId, currentUser.organizationId);
+            const prevAssignee = task.assignedTo
+                ? await this.repo.findUserInOrg(task.assignedTo, currentUser.organizationId)
+                : null;
+
             await this.audit.log({
                 action: 'TASK_ASSIGNED',
                 entity: 'Task',
                 entityId: id,
                 userId: currentUser.userId,
                 organizationId: currentUser.organizationId,
-                metadata: { assignedTo: dto.assignedTo, previousAssignee: task.assignedTo },
+                metadata: {
+                    taskTitle: updated.title,
+                    assignedTo: dto.assignedTo,
+                    assigneeEmail: assignee?.email || dto.assignedTo,
+                    previousAssignee: task.assignedTo,
+                    previousAssigneeEmail: prevAssignee?.email || null,
+                    performerEmail: performer?.email || currentUser.userId,
+                },
+            });
+
+            await this.notificationsQueue.add('task-assigned', {
+                taskId: id,
+                taskTitle: updated.title,
+                assignedTo: dto.assignedTo,
+                assignedBy: currentUser.userId,
             });
         }
 
+        // Audit + Queue for status changes
         if (dto.status && dto.status !== task.status) {
+            const performer = await this.repo.findUserInOrg(currentUser.userId, currentUser.organizationId);
             await this.audit.log({
                 action: 'TASK_STATUS_CHANGED',
                 entity: 'Task',
                 entityId: id,
                 userId: currentUser.userId,
                 organizationId: currentUser.organizationId,
-                metadata: { from: task.status, to: dto.status },
+                metadata: {
+                    taskTitle: updated.title,
+                    from: task.status,
+                    to: dto.status,
+                    performerEmail: performer?.email || currentUser.userId,
+                },
+            });
+
+            await this.notificationsQueue.add('task-status-changed', {
+                taskId: id,
+                taskTitle: updated.title,
+                from: task.status,
+                to: dto.status,
+                changedBy: currentUser.userId,
             });
         }
+
+        // Broadcast real-time
+        this.eventsGateway.broadcastTaskUpdated(currentUser.organizationId, updated);
 
         return updated;
     }
@@ -132,14 +198,19 @@ export class TasksService {
         if (!task) throw new NotFoundException('Task not found');
         await this.repo.softDelete(id);
 
+        const performer = userId ? await this.repo.findUserInOrg(userId, organizationId) : null;
+
         await this.audit.log({
             action: 'TASK_DELETED',
             entity: 'Task',
             entityId: id,
             userId: userId || 'system',
             organizationId,
-            metadata: { title: task.title },
+            metadata: { title: task.title, performerEmail: performer?.email || 'system' },
         });
+
+        // Broadcast real-time
+        this.eventsGateway.broadcastTaskDeleted(organizationId, id);
 
         return { message: 'Task deleted successfully' };
     }

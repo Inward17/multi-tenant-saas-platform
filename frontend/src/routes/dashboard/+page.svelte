@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { goto } from "$app/navigation";
     import { getOrganization, type Organization } from "$lib/api/organizations";
     import Card from "$lib/components/ui/Card.svelte";
     import SkeletonLoader from "$lib/components/ui/SkeletonLoader.svelte";
@@ -91,11 +92,7 @@
         <div class="section">
             <h2>Quick Actions</h2>
             <div class="actions-grid">
-                <Card
-                    hover
-                    onclick={() =>
-                        (window.location.href = "/dashboard/projects")}
-                >
+                <Card hover onclick={() => goto("/dashboard/projects")}>
                     <div class="action-card">
                         <div class="action-icon">📁</div>
                         <div>
@@ -105,10 +102,7 @@
                         <span class="action-arrow">→</span>
                     </div>
                 </Card>
-                <Card
-                    hover
-                    onclick={() => (window.location.href = "/dashboard/tasks")}
-                >
+                <Card hover onclick={() => goto("/dashboard/tasks")}>
                     <div class="action-card">
                         <div class="action-icon">✅</div>
                         <div>

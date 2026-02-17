@@ -60,13 +60,18 @@ export class UsersService {
             },
         });
 
+        const performer = await this.prisma.user.findUnique({
+            where: { id: currentUser.userId },
+            select: { email: true },
+        });
+
         await this.audit.log({
             action: 'MEMBER_ADDED',
             entity: 'User',
             entityId: user.id,
             userId: currentUser.userId,
             organizationId: currentUser.organizationId,
-            metadata: { email: dto.email, role },
+            metadata: { email: dto.email, role, performerEmail: performer?.email || currentUser.userId },
         });
 
         return user;
@@ -190,13 +195,23 @@ export class UsersService {
             },
         });
 
+        const performer = await this.prisma.user.findUnique({
+            where: { id: currentUser.userId },
+            select: { email: true },
+        });
+
         await this.audit.log({
             action: 'ROLE_CHANGED',
             entity: 'User',
             entityId: userId,
             userId: currentUser.userId,
             organizationId: currentUser.organizationId,
-            metadata: { from: targetUser.role, to: dto.role, targetEmail: targetUser.email },
+            metadata: {
+                from: targetUser.role,
+                to: dto.role,
+                targetEmail: targetUser.email,
+                performerEmail: performer?.email || currentUser.userId,
+            },
         });
 
         return updated;

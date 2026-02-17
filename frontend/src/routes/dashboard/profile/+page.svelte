@@ -3,8 +3,12 @@
     import { updateProfile, changePassword } from "$lib/api/profile";
     import { logout } from "$lib/api/auth";
     import { setUser, clearUser } from "$lib/stores/auth";
+    import { toastSuccess, toastError } from "$lib/stores/toast";
     import { theme, type Theme } from "$lib/stores/theme";
+    import { formatDateLong } from "$lib/utils/format";
     import Badge from "$lib/components/ui/Badge.svelte";
+    import Button from "$lib/components/ui/Button.svelte";
+    import Input from "$lib/components/ui/Input.svelte";
     import type { PageData } from "./$types";
 
     let { data }: { data: PageData } = $props();
@@ -14,14 +18,10 @@
     // ─── Email Update ────────────────────────────
     let editEmail = $state(data.profile.email);
     let emailSaving = $state(false);
-    let emailMsg = $state("");
-    let emailError = $state("");
 
     async function handleUpdateEmail() {
         if (editEmail === profile.email) return;
         emailSaving = true;
-        emailMsg = "";
-        emailError = "";
         try {
             const updated = await updateProfile({ email: editEmail });
             profile = updated;
@@ -32,9 +32,9 @@
                 organizationId: updated.organizationId,
                 organizationName: updated.organizationName,
             });
-            emailMsg = "Email updated successfully";
+            toastSuccess("Email updated successfully");
         } catch (err: any) {
-            emailError = err.message || "Failed to update email";
+            toastError(err.message || "Failed to update email");
         } finally {
             emailSaving = false;
         }
@@ -45,18 +45,14 @@
     let newPassword = $state("");
     let confirmPassword = $state("");
     let pwSaving = $state(false);
-    let pwMsg = $state("");
-    let pwError = $state("");
 
     async function handleChangePassword() {
-        pwMsg = "";
-        pwError = "";
         if (newPassword.length < 8) {
-            pwError = "New password must be at least 8 characters";
+            toastError("New password must be at least 8 characters");
             return;
         }
         if (newPassword !== confirmPassword) {
-            pwError = "Passwords do not match";
+            toastError("Passwords do not match");
             return;
         }
         pwSaving = true;
@@ -65,12 +61,12 @@
                 currentPassword,
                 newPassword,
             });
-            pwMsg = result.message;
+            toastSuccess(result.message);
             currentPassword = "";
             newPassword = "";
             confirmPassword = "";
         } catch (err: any) {
-            pwError = err.message || "Failed to change password";
+            toastError(err.message || "Failed to change password");
         } finally {
             pwSaving = false;
         }
@@ -83,20 +79,12 @@
         goto("/login");
     }
 
-    function formatDate(dateStr: string) {
-        return new Date(dateStr).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-        });
-    }
-
     function roleVariant(role: string): "owner" | "admin" | "member" {
         return role.toLowerCase() as "owner" | "admin" | "member";
     }
 </script>
 
-<div class="profile-page">
+<div class="profile-page fade-in">
     <!-- ─── Account Information ─── -->
     <section class="profile-card">
         <div class="card-header">
@@ -120,26 +108,25 @@
         </div>
 
         <div class="info-grid">
-            <div class="info-item">
-                <label for="profileEmail">Email Address</label>
+            <div class="info-item info-item-full">
+                <span class="info-label">Email Address</span>
                 <div class="input-row">
-                    <input
+                    <Input
                         id="profileEmail"
                         type="email"
                         bind:value={editEmail}
-                        class="input"
                         placeholder="you@example.com"
                     />
-                    <button
-                        class="btn btn-sm btn-primary"
+                    <Button
+                        variant="primary"
+                        size="sm"
                         onclick={handleUpdateEmail}
-                        disabled={emailSaving || editEmail === profile.email}
+                        loading={emailSaving}
+                        disabled={editEmail === profile.email}
                     >
-                        {emailSaving ? "Saving..." : "Save"}
-                    </button>
+                        Save
+                    </Button>
                 </div>
-                {#if emailMsg}<p class="msg success">{emailMsg}</p>{/if}
-                {#if emailError}<p class="msg error">{emailError}</p>{/if}
             </div>
 
             <div class="info-item">
@@ -158,7 +145,9 @@
 
             <div class="info-item">
                 <span class="info-label">Member Since</span>
-                <span class="info-value">{formatDate(profile.createdAt)}</span>
+                <span class="info-value"
+                    >{formatDateLong(profile.createdAt)}</span
+                >
             </div>
         </div>
     </section>
@@ -251,48 +240,35 @@
         </div>
 
         <div class="password-form">
-            <div class="form-field">
-                <label for="currentPw">Current Password</label>
-                <input
-                    id="currentPw"
-                    type="password"
-                    bind:value={currentPassword}
-                    class="input"
-                    placeholder="Enter current password"
-                />
-            </div>
-            <div class="form-field">
-                <label for="newPw">New Password</label>
-                <input
-                    id="newPw"
-                    type="password"
-                    bind:value={newPassword}
-                    class="input"
-                    placeholder="Min 8 characters"
-                />
-            </div>
-            <div class="form-field">
-                <label for="confirmPw">Confirm New Password</label>
-                <input
-                    id="confirmPw"
-                    type="password"
-                    bind:value={confirmPassword}
-                    class="input"
-                    placeholder="Re-enter new password"
-                />
-            </div>
-            <button
-                class="btn btn-primary"
+            <Input
+                label="Current Password"
+                id="currentPw"
+                type="password"
+                bind:value={currentPassword}
+                placeholder="Enter current password"
+            />
+            <Input
+                label="New Password"
+                id="newPw"
+                type="password"
+                bind:value={newPassword}
+                placeholder="Min 8 characters"
+            />
+            <Input
+                label="Confirm New Password"
+                id="confirmPw"
+                type="password"
+                bind:value={confirmPassword}
+                placeholder="Re-enter new password"
+            />
+            <Button
+                variant="primary"
                 onclick={handleChangePassword}
-                disabled={pwSaving ||
-                    !currentPassword ||
-                    !newPassword ||
-                    !confirmPassword}
+                loading={pwSaving}
+                disabled={!currentPassword || !newPassword || !confirmPassword}
             >
-                {pwSaving ? "Changing..." : "Change Password"}
-            </button>
-            {#if pwMsg}<p class="msg success">{pwMsg}</p>{/if}
-            {#if pwError}<p class="msg error">{pwError}</p>{/if}
+                Change Password
+            </Button>
         </div>
     </section>
 
@@ -322,9 +298,9 @@
                     <h3>Sign Out</h3>
                     <p>Sign out of your current session on this device.</p>
                 </div>
-                <button class="btn btn-danger" onclick={handleLogout}>
+                <Button variant="danger" onclick={handleLogout}>
                     Sign Out
-                </button>
+                </Button>
             </div>
         </div>
     </section>
@@ -383,10 +359,9 @@
         flex-direction: column;
         gap: 0.4rem;
     }
-    .info-item:first-child {
+    .info-item-full {
         grid-column: 1 / -1;
     }
-    .info-item label,
     .info-label {
         font-size: 0.7rem;
         text-transform: uppercase;
@@ -402,20 +377,7 @@
     .input-row {
         display: flex;
         gap: 0.5rem;
-    }
-    .input {
-        flex: 1;
-        padding: 0.55rem 0.85rem;
-        background: var(--bg-primary);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        color: var(--text-primary);
-        font-size: 0.85rem;
-        outline: none;
-        transition: border-color var(--transition);
-    }
-    .input:focus {
-        border-color: var(--accent);
+        align-items: flex-start;
     }
 
     /* ─── Password Form ─── */
@@ -423,65 +385,6 @@
         display: flex;
         flex-direction: column;
         gap: 1rem;
-    }
-    .form-field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-    }
-    .form-field label {
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        color: var(--text-muted);
-        font-weight: 600;
-    }
-
-    /* ─── Buttons ─── */
-    .btn {
-        padding: 0.55rem 1.2rem;
-        border-radius: var(--radius-sm);
-        font-size: 0.8rem;
-        font-weight: 600;
-        cursor: pointer;
-        border: none;
-        transition: all var(--transition);
-    }
-    .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-    .btn-sm {
-        padding: 0.45rem 1rem;
-        font-size: 0.75rem;
-    }
-    .btn-primary {
-        background: var(--accent);
-        color: white;
-    }
-    .btn-primary:hover:not(:disabled) {
-        filter: brightness(1.1);
-        box-shadow: 0 0 16px rgba(108, 99, 255, 0.3);
-    }
-    .btn-danger {
-        background: rgba(248, 113, 113, 0.1);
-        color: var(--danger);
-        border: 1px solid rgba(248, 113, 113, 0.2);
-    }
-    .btn-danger:hover:not(:disabled) {
-        background: rgba(248, 113, 113, 0.18);
-    }
-
-    /* ─── Feedback ─── */
-    .msg {
-        font-size: 0.78rem;
-        margin-top: 0.25rem;
-    }
-    .msg.success {
-        color: var(--success);
-    }
-    .msg.error {
-        color: var(--danger);
     }
 
     /* ─── Security ─── */

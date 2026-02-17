@@ -8,6 +8,7 @@
         type Project,
     } from "$lib/api/projects";
     import { toastSuccess, toastError } from "$lib/stores/toast";
+    import { formatDate } from "$lib/utils/format";
     import Button from "$lib/components/ui/Button.svelte";
     import Card from "$lib/components/ui/Card.svelte";
     import Modal from "$lib/components/ui/Modal.svelte";
@@ -19,6 +20,7 @@
     let { data }: { data: LayoutData } = $props();
     let projects = $state<Project[]>([]);
     let loading = $state(true);
+    let searchQuery = $state("");
     let showCreate = $state(false);
     let showDeleteConfirm = $state<string | null>(null);
     let newName = $state("");
@@ -71,18 +73,20 @@
         }
     }
 
-    function formatDate(iso: string) {
-        return new Date(iso).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-        });
-    }
-
     const canCreate = $derived(
         data.user.role === "OWNER" || data.user.role === "ADMIN",
     );
     const canDelete = $derived(data.user.role === "OWNER");
+
+    const filteredProjects = $derived(
+        searchQuery.trim()
+            ? projects.filter((p) =>
+                  p.name
+                      .toLowerCase()
+                      .includes(searchQuery.trim().toLowerCase()),
+              )
+            : projects,
+    );
 </script>
 
 <svelte:head>
@@ -105,21 +109,60 @@
         {/if}
     </div>
 
+    <!-- Search -->
+    <div class="search-bar">
+        <svg
+            class="search-icon"
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+        >
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+        </svg>
+        <input
+            class="search-input"
+            type="text"
+            placeholder="Search projects by name..."
+            bind:value={searchQuery}
+        />
+        {#if searchQuery}
+            <button
+                class="search-clear"
+                onclick={() => (searchQuery = "")}
+                aria-label="Clear search"
+            >
+                ✕
+            </button>
+        {/if}
+    </div>
+
     {#if loading}
         <SkeletonLoader variant="card" count={4} />
-    {:else if projects.length === 0}
+    {:else if filteredProjects.length === 0}
         <Card>
             <EmptyState
                 icon="📁"
-                title="No projects yet"
-                message="Create your first project to start organizing tasks"
-                actionLabel={canCreate ? "Create Project" : undefined}
-                onaction={canCreate ? () => (showCreate = true) : undefined}
+                title={searchQuery
+                    ? "No projects matching search"
+                    : "No projects yet"}
+                message={searchQuery
+                    ? `No results for "${searchQuery}"`
+                    : "Create your first project to start organizing tasks"}
+                actionLabel={!searchQuery && canCreate
+                    ? "Create Project"
+                    : undefined}
+                onaction={!searchQuery && canCreate
+                    ? () => (showCreate = true)
+                    : undefined}
             />
         </Card>
     {:else}
         <div class="projects-grid">
-            {#each projects as project, i (project.id)}
+            {#each filteredProjects as project, i (project.id)}
                 <div style="animation-delay: {i * 0.05}s" class="stagger-in">
                     <Card
                         hover
@@ -256,6 +299,57 @@
         color: var(--text-secondary);
         margin-top: 0.2rem;
         font-size: 0.875rem;
+    }
+
+    /* Search */
+    .search-bar {
+        position: relative;
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    .search-icon {
+        position: absolute;
+        left: 0.75rem;
+        color: var(--text-muted);
+        pointer-events: none;
+    }
+    .search-input {
+        width: 100%;
+        padding: 0.6rem 2.25rem 0.6rem 2.25rem;
+        background: var(--bg-input);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text-primary);
+        font-family: inherit;
+        font-size: 0.85rem;
+        transition:
+            border-color var(--transition),
+            box-shadow var(--transition);
+    }
+    .search-input::placeholder {
+        color: var(--text-muted);
+    }
+    .search-input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+    }
+    .search-clear {
+        position: absolute;
+        right: 0.5rem;
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 0.25rem 0.4rem;
+        font-size: 0.75rem;
+        border-radius: 4px;
+        transition: all var(--transition);
+    }
+    .search-clear:hover {
+        color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.06);
     }
 
     .projects-grid {

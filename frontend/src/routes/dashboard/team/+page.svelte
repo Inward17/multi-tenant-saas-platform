@@ -8,8 +8,13 @@
     } from "$lib/api/team";
     import { user } from "$lib/stores/auth";
     import { get } from "svelte/store";
+    import { toastSuccess, toastError } from "$lib/stores/toast";
+    import { formatDate } from "$lib/utils/format";
     import Badge from "$lib/components/ui/Badge.svelte";
+    import Button from "$lib/components/ui/Button.svelte";
     import Card from "$lib/components/ui/Card.svelte";
+    import Input from "$lib/components/ui/Input.svelte";
+    import Select from "$lib/components/ui/Select.svelte";
 
     let members = $state<TeamMember[]>([]);
     let loading = $state(true);
@@ -19,10 +24,8 @@
     let showInvite = $state(false);
     let inviteEmail = $state("");
     let invitePassword = $state("");
-    let inviteRole = $state<"ADMIN" | "MEMBER">("MEMBER");
+    let inviteRole = $state("MEMBER");
     let inviteSaving = $state(false);
-    let inviteMsg = $state("");
-    let inviteError = $state("");
 
     onMount(async () => {
         try {
@@ -35,10 +38,8 @@
     });
 
     async function handleInvite() {
-        inviteMsg = "";
-        inviteError = "";
         if (!inviteEmail || !invitePassword) {
-            inviteError = "Email and password are required";
+            toastError("Email and password are required");
             return;
         }
         inviteSaving = true;
@@ -46,16 +47,16 @@
             const newMember = await inviteMember({
                 email: inviteEmail,
                 password: invitePassword,
-                role: inviteRole,
+                role: inviteRole as "ADMIN" | "MEMBER",
             });
             members = [...members, newMember];
             inviteEmail = "";
             invitePassword = "";
             inviteRole = "MEMBER";
-            inviteMsg = "Member added successfully!";
             showInvite = false;
+            toastSuccess("Member added successfully!");
         } catch (err: any) {
-            inviteError = err.message || "Failed to add member";
+            toastError(err.message || "Failed to add member");
         } finally {
             inviteSaving = false;
         }
@@ -65,8 +66,9 @@
         try {
             const updated = await updateMemberRole(memberId, newRole);
             members = members.map((m) => (m.id === memberId ? updated : m));
+            toastSuccess("Role updated");
         } catch (err: any) {
-            alert(err.message || "Failed to update role");
+            toastError(err.message || "Failed to update role");
         }
     }
 
@@ -74,18 +76,15 @@
         return role.toLowerCase() as "owner" | "admin" | "member";
     }
 
-    function formatDate(dateStr: string) {
-        return new Date(dateStr).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-        });
-    }
-
     const isOwner = $derived(currentUser?.role === "OWNER");
     const canInvite = $derived(
         currentUser?.role === "OWNER" || currentUser?.role === "ADMIN",
     );
+
+    const roleOptions = [
+        { value: "MEMBER", label: "Member" },
+        { value: "ADMIN", label: "Admin" },
+    ];
 </script>
 
 <svelte:head>
@@ -102,12 +101,12 @@
             </p>
         </div>
         {#if canInvite}
-            <button
-                class="btn btn-primary"
+            <Button
+                variant={showInvite ? "secondary" : "primary"}
                 onclick={() => (showInvite = !showInvite)}
             >
                 {showInvite ? "Cancel" : "+ Add Member"}
-            </button>
+            </Button>
         {/if}
     </div>
 
@@ -116,50 +115,35 @@
             <div class="invite-form">
                 <h3>Add New Member</h3>
                 <div class="invite-fields">
-                    <div class="field">
-                        <label for="invEmail">Email</label>
-                        <input
-                            id="invEmail"
-                            type="email"
-                            bind:value={inviteEmail}
-                            class="input"
-                            placeholder="member@company.com"
-                        />
-                    </div>
-                    <div class="field">
-                        <label for="invPw">Temporary Password</label>
-                        <input
-                            id="invPw"
-                            type="password"
-                            bind:value={invitePassword}
-                            class="input"
-                            placeholder="Min 8 characters"
-                        />
-                    </div>
-                    <div class="field">
-                        <label for="invRole">Role</label>
-                        <select
-                            id="invRole"
-                            class="input"
-                            bind:value={inviteRole}
-                        >
-                            <option value="MEMBER">Member</option>
-                            <option value="ADMIN">Admin</option>
-                        </select>
-                    </div>
+                    <Input
+                        label="Email"
+                        id="invEmail"
+                        type="email"
+                        bind:value={inviteEmail}
+                        placeholder="member@company.com"
+                    />
+                    <Input
+                        label="Temporary Password"
+                        id="invPw"
+                        type="password"
+                        bind:value={invitePassword}
+                        placeholder="Min 8 characters"
+                    />
+                    <Select
+                        label="Role"
+                        id="invRole"
+                        bind:value={inviteRole}
+                        options={roleOptions}
+                    />
                 </div>
                 <div class="invite-actions">
-                    <button
-                        class="btn btn-primary"
+                    <Button
+                        variant="primary"
                         onclick={handleInvite}
-                        disabled={inviteSaving}
+                        loading={inviteSaving}
                     >
-                        {inviteSaving ? "Adding..." : "Add Member"}
-                    </button>
-                    {#if inviteMsg}<span class="msg success">{inviteMsg}</span
-                        >{/if}
-                    {#if inviteError}<span class="msg error">{inviteError}</span
-                        >{/if}
+                        Add Member
+                    </Button>
                 </div>
             </div>
         </Card>
@@ -226,28 +210,6 @@
         margin-top: 0.25rem;
     }
 
-    .btn {
-        padding: 0.55rem 1.2rem;
-        border-radius: var(--radius-sm);
-        font-size: 0.8rem;
-        font-weight: 600;
-        cursor: pointer;
-        border: none;
-        transition: all var(--transition);
-    }
-    .btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-    .btn-primary {
-        background: var(--accent);
-        color: white;
-    }
-    .btn-primary:hover:not(:disabled) {
-        filter: brightness(1.1);
-        box-shadow: 0 0 16px rgba(108, 99, 255, 0.3);
-    }
-
     /* ─── Invite Form ─── */
     .invite-form {
         display: flex;
@@ -260,33 +222,8 @@
     }
     .invite-fields {
         display: grid;
-        grid-template-columns: 1fr 1fr 120px;
+        grid-template-columns: 1fr 1fr 140px;
         gap: 0.75rem;
-    }
-    .field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.3rem;
-    }
-    .field label {
-        font-size: 0.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        color: var(--text-muted);
-        font-weight: 600;
-    }
-    .input {
-        padding: 0.5rem 0.75rem;
-        background: var(--bg-primary);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        color: var(--text-primary);
-        font-size: 0.85rem;
-        outline: none;
-        transition: border-color var(--transition);
-    }
-    .input:focus {
-        border-color: var(--accent);
     }
     .invite-actions {
         display: flex;
@@ -360,20 +297,12 @@
         font-size: 0.78rem;
         cursor: pointer;
         outline: none;
+        transition: border-color var(--transition);
     }
     .role-select:focus {
         border-color: var(--accent);
     }
 
-    .msg {
-        font-size: 0.78rem;
-    }
-    .msg.success {
-        color: var(--success);
-    }
-    .msg.error {
-        color: var(--danger);
-    }
     .loading-text {
         color: var(--text-muted);
         font-size: 0.85rem;

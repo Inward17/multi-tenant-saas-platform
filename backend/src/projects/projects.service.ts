@@ -16,13 +16,17 @@ export class ProjectsService {
             data: { name: dto.name, organizationId },
         });
 
+        const performer = userId
+            ? await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } })
+            : null;
+
         await this.audit.log({
             action: 'PROJECT_CREATED',
             entity: 'Project',
             entityId: project.id,
             userId: userId || 'system',
             organizationId,
-            metadata: { name: dto.name },
+            metadata: { name: dto.name, performerEmail: performer?.email || 'system' },
         });
 
         return project;
@@ -73,13 +77,17 @@ export class ProjectsService {
             data: { deletedAt: new Date() } as any,
         });
 
+        const performer = userId
+            ? await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } })
+            : null;
+
         await this.audit.log({
             action: 'PROJECT_DELETED',
             entity: 'Project',
             entityId: id,
             userId: userId || 'system',
             organizationId,
-            metadata: { name: project.name },
+            metadata: { name: project.name, performerEmail: performer?.email || 'system' },
         });
 
         return { message: 'Project deleted successfully' };

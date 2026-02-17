@@ -9,7 +9,7 @@
 </script>
 
 {#if $toasts.length > 0}
-    <div class="toast-container">
+    <div class="toast-container" aria-live="polite" role="status">
         {#each $toasts as toast (toast.id)}
             <div class="toast toast-{toast.type}">
                 <span class="toast-icon">{icon(toast.type)}</span>

@@ -1,9 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { EventsGateway } from '../events/events.gateway';
 
 @Injectable()
 export class AuditService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private eventsGateway: EventsGateway,
+    ) { }
 
     async log(params: {
         action: string;
@@ -13,7 +17,12 @@ export class AuditService {
         organizationId: string;
         metadata?: Record<string, any>;
     }) {
-        return (this.prisma as any).auditLog.create({ data: params });
+        const entry = await (this.prisma as any).auditLog.create({ data: params });
+
+        // Broadcast activity in real-time to org room
+        this.eventsGateway.broadcastActivity(params.organizationId, entry);
+
+        return entry;
     }
 
     async findAll(

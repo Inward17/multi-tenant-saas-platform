@@ -17,6 +17,18 @@ services:
       timeout: 3s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   api:
     build: ./backend
     ports:
@@ -24,10 +36,13 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/saas_task_manager
       JWT_SECRET: super-secret-key-change-in-prod
+      REDIS_URL: redis://redis:6379
       COOKIE_DOMAIN: localhost
       NODE_ENV: production
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     command: >
       sh -c "npx prisma migrate deploy && node dist/main.js"
@@ -44,3 +59,4 @@ services:
 
 volumes:
   pgdata:
+  redisdata:

@@ -75,20 +75,13 @@
     <div class="project-detail fade-in">
         <div class="page-header">
             <div>
-                <a href="/dashboard/projects" class="back-link">
-                    <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        ><path d="M19 12H5" /><polyline
-                            points="12 19 5 12 12 5"
-                        /></svg
+                <nav class="breadcrumb" aria-label="Breadcrumb">
+                    <a href="/dashboard/projects" class="breadcrumb-link"
+                        >Projects</a
                     >
-                    Back to Projects
-                </a>
+                    <span class="breadcrumb-sep">/</span>
+                    <span class="breadcrumb-current">{project.name}</span>
+                </nav>
                 <div class="title-row">
                     <div class="project-icon-lg">📁</div>
                     <div>
@@ -193,17 +186,27 @@
         align-items: flex-start;
         margin-bottom: 1.5rem;
     }
-    .back-link {
-        display: inline-flex;
+    .breadcrumb {
+        display: flex;
         align-items: center;
-        gap: 0.4rem;
-        font-size: 0.8rem;
-        color: var(--text-muted);
+        gap: 0.5rem;
+        font-size: 0.82rem;
         margin-bottom: 0.75rem;
+    }
+    .breadcrumb-link {
+        color: var(--text-muted);
         transition: color var(--transition);
     }
-    .back-link:hover {
+    .breadcrumb-link:hover {
         color: var(--accent);
+    }
+    .breadcrumb-sep {
+        color: var(--text-muted);
+        opacity: 0.5;
+    }
+    .breadcrumb-current {
+        color: var(--text-primary);
+        font-weight: 600;
     }
     .title-row {
         display: flex;

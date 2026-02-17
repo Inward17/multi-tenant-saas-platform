@@ -17,6 +17,7 @@
     import Input from "$lib/components/ui/Input.svelte";
     import EmptyState from "$lib/components/ui/EmptyState.svelte";
     import SkeletonLoader from "$lib/components/ui/SkeletonLoader.svelte";
+    import Select from "$lib/components/ui/Select.svelte";
     import type { LayoutData } from "../$types";
 
     let { data }: { data: LayoutData } = $props();
@@ -27,6 +28,7 @@
     let users = $state<OrgUser[]>([]);
     let loading = $state(true);
     let statusFilter = $state("");
+    let searchQuery = $state("");
     let showCreate = $state(false);
     let showDeleteConfirm = $state<string | null>(null);
 
@@ -177,6 +179,30 @@
         { value: "IN_PROGRESS", label: "In Progress" },
         { value: "DONE", label: "Done" },
     ];
+
+    const statusOptions = [
+        { value: "TODO", label: "To Do" },
+        { value: "IN_PROGRESS", label: "In Progress" },
+        { value: "DONE", label: "Done" },
+    ];
+
+    const projectOptions = $derived(
+        projects.map((p) => ({ value: p.id, label: p.name })),
+    );
+
+    const userOptions = $derived(
+        users.map((u) => ({ value: u.id, label: u.email })),
+    );
+
+    const filteredTasks = $derived(
+        searchQuery.trim()
+            ? tasks.filter((t) =>
+                  t.title
+                      .toLowerCase()
+                      .includes(searchQuery.trim().toLowerCase()),
+              )
+            : tasks,
+    );
 </script>
 
 <svelte:head>
@@ -219,29 +245,64 @@
         {/each}
     </div>
 
+    <!-- Search -->
+    <div class="search-bar">
+        <svg
+            class="search-icon"
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+        >
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+        </svg>
+        <input
+            class="search-input"
+            type="text"
+            placeholder="Search tasks by title..."
+            bind:value={searchQuery}
+        />
+        {#if searchQuery}
+            <button
+                class="search-clear"
+                onclick={() => (searchQuery = "")}
+                aria-label="Clear search"
+            >
+                ✕
+            </button>
+        {/if}
+    </div>
+
     {#if loading}
         <SkeletonLoader variant="row" count={5} />
-    {:else if tasks.length === 0}
+    {:else if filteredTasks.length === 0}
         <Card>
             <EmptyState
                 icon="✅"
-                title={statusFilter
-                    ? "No tasks matching filter"
-                    : "No tasks yet"}
-                message={statusFilter
-                    ? "Try removing the filter to see all tasks"
-                    : "Create your first task to get started"}
-                actionLabel={!statusFilter && canCreate
+                title={searchQuery
+                    ? "No tasks matching search"
+                    : statusFilter
+                      ? "No tasks matching filter"
+                      : "No tasks yet"}
+                message={searchQuery
+                    ? `No results for "${searchQuery}"`
+                    : statusFilter
+                      ? "Try removing the filter to see all tasks"
+                      : "Create your first task to get started"}
+                actionLabel={!statusFilter && !searchQuery && canCreate
                     ? "Create Task"
                     : undefined}
-                onaction={!statusFilter && canCreate
+                onaction={!statusFilter && !searchQuery && canCreate
                     ? () => (showCreate = true)
                     : undefined}
             />
         </Card>
     {:else}
         <div class="tasks-list">
-            {#each tasks as task, i (task.id)}
+            {#each filteredTasks as task, i (task.id)}
                 <div
                     class="task-row stagger-in"
                     style="animation-delay: {i * 0.04}s"
@@ -399,32 +460,26 @@
             id="task-desc"
         />
         <div class="form-row">
-            <div class="select-group">
-                <label for="task-project">Project</label>
-                <select id="task-project" bind:value={newProjectId}>
-                    {#each projects as p}
-                        <option value={p.id}>{p.name}</option>
-                    {/each}
-                </select>
-            </div>
-            <div class="select-group">
-                <label for="task-status">Status</label>
-                <select id="task-status" bind:value={newStatus}>
-                    <option value="TODO">To Do</option>
-                    <option value="IN_PROGRESS">In Progress</option>
-                    <option value="DONE">Done</option>
-                </select>
-            </div>
+            <Select
+                label="Project"
+                id="task-project"
+                bind:value={newProjectId}
+                options={projectOptions}
+            />
+            <Select
+                label="Status"
+                id="task-status"
+                bind:value={newStatus}
+                options={statusOptions}
+            />
         </div>
-        <div class="select-group">
-            <label for="task-assignee">Assign To (optional)</label>
-            <select id="task-assignee" bind:value={newAssignee}>
-                <option value="">Unassigned</option>
-                {#each users as u}
-                    <option value={u.id}>{u.email}</option>
-                {/each}
-            </select>
-        </div>
+        <Select
+            label="Assign To (optional)"
+            id="task-assignee"
+            bind:value={newAssignee}
+            options={userOptions}
+            placeholder="Unassigned"
+        />
         <div class="modal-actions">
             <Button variant="secondary" onclick={() => (showCreate = false)}
                 >Cancel</Button
@@ -522,6 +577,57 @@
     }
     .filter-pill.active .filter-dot {
         background: white;
+    }
+
+    /* Search */
+    .search-bar {
+        position: relative;
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    .search-icon {
+        position: absolute;
+        left: 0.75rem;
+        color: var(--text-muted);
+        pointer-events: none;
+    }
+    .search-input {
+        width: 100%;
+        padding: 0.6rem 2.25rem 0.6rem 2.25rem;
+        background: var(--bg-input);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text-primary);
+        font-family: inherit;
+        font-size: 0.85rem;
+        transition:
+            border-color var(--transition),
+            box-shadow var(--transition);
+    }
+    .search-input::placeholder {
+        color: var(--text-muted);
+    }
+    .search-input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+    }
+    .search-clear {
+        position: absolute;
+        right: 0.5rem;
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        padding: 0.25rem 0.4rem;
+        font-size: 0.75rem;
+        border-radius: 4px;
+        transition: all var(--transition);
+    }
+    .search-clear:hover {
+        color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.06);
     }
 
     /* Task List */
@@ -671,33 +777,6 @@
     .form-row {
         display: flex;
         gap: 0.75rem;
-    }
-    .select-group {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 0.4rem;
-    }
-    .select-group label {
-        font-size: 0.8rem;
-        font-weight: 500;
-        color: var(--text-secondary);
-    }
-    .select-group select {
-        background: var(--bg-input);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 0.75rem 1rem;
-        color: var(--text-primary);
-        font-family: inherit;
-        font-size: 0.875rem;
-        width: 100%;
-        transition: border-color var(--transition);
-    }
-    .select-group select:focus {
-        outline: none;
-        border-color: var(--accent);
-        box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
     }
     .modal-actions {
         display: flex;

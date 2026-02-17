@@ -10,6 +10,8 @@ import { ProjectsModule } from './projects/projects.module';
 import { TasksModule } from './tasks/tasks.module';
 import { AuditModule } from './audit/audit.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { EventsModule } from './events/events.module';
+import { JobsModule } from './jobs/jobs.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -30,6 +32,8 @@ import { envValidationSchema } from './common/env.validation';
         TasksModule,
         AuditModule,
         MetricsModule,
+        EventsModule,
+        JobsModule,
     ],
     providers: [
         { provide: APP_GUARD, useClass: JwtAuthGuard },
