@@ -93,7 +93,7 @@ describe('TasksService', () => {
         it('should accept valid assignee within org', async () => {
             const dtoWithAssignee = { ...dto, assignedTo: 'user-1' };
             repo.findProjectInOrg.mockResolvedValue({ id: 'proj-1' });
-            repo.findUserInOrg.mockResolvedValue({ id: 'user-1', organizationId: orgId });
+            repo.findUserInOrg.mockResolvedValue({ id: 'user-1', organizationId: orgId, email: 'user-1@co.com' });
             repo.create.mockResolvedValue({ id: 'task-1', assignedTo: 'user-1' });
 
             const result = await service.create(dtoWithAssignee, orgId, 'user-1');
@@ -102,25 +102,39 @@ describe('TasksService', () => {
 
         it('should log TASK_CREATED audit event', async () => {
             repo.findProjectInOrg.mockResolvedValue({ id: 'proj-1' });
-            repo.create.mockResolvedValue({ id: 'task-1' });
+            repo.findUserInOrg.mockResolvedValue({ id: 'user-1', email: 'user-1@co.com' });
+            repo.create.mockResolvedValue({ id: 'task-1', title: 'Fix bug' });
 
             await service.create(dto, orgId, 'user-1');
 
             expect(audit.log).toHaveBeenCalledWith(
-                expect.objectContaining({ action: 'TASK_CREATED', entity: 'Task' }),
+                expect.objectContaining({
+                    action: 'TASK_CREATED',
+                    entity: 'Task',
+                    metadata: expect.objectContaining({
+                        title: 'Fix bug',
+                        performerEmail: 'user-1@co.com',
+                    }),
+                }),
             );
         });
 
         it('should log TASK_ASSIGNED when assignee provided', async () => {
             const dtoWithAssignee = { ...dto, assignedTo: 'user-2' };
             repo.findProjectInOrg.mockResolvedValue({ id: 'proj-1' });
-            repo.findUserInOrg.mockResolvedValue({ id: 'user-2' });
-            repo.create.mockResolvedValue({ id: 'task-1', assignedTo: 'user-2' });
+            repo.findUserInOrg.mockResolvedValue({ id: 'user-2', email: 'user-2@co.com' });
+            repo.create.mockResolvedValue({ id: 'task-1', assignedTo: 'user-2', title: 'Fix bug' });
 
             await service.create(dtoWithAssignee, orgId, 'user-1');
 
             expect(audit.log).toHaveBeenCalledWith(
-                expect.objectContaining({ action: 'TASK_ASSIGNED' }),
+                expect.objectContaining({
+                    action: 'TASK_ASSIGNED',
+                    metadata: expect.objectContaining({
+                        assignedTo: 'user-2',
+                        assigneeEmail: 'user-2@co.com',
+                    }),
+                }),
             );
         });
     });
@@ -225,30 +239,39 @@ describe('TasksService', () => {
         });
 
         it('should log TASK_ASSIGNED on reassignment', async () => {
-            repo.findById.mockResolvedValue({ id: 'task-1', organizationId: 'org-1', assignedTo: 'user-1' });
-            repo.findUserInOrg.mockResolvedValue({ id: 'user-2' });
-            repo.update.mockResolvedValue({ id: 'task-1', assignedTo: 'user-2' });
+            repo.findById.mockResolvedValue({ id: 'task-1', organizationId: 'org-1', assignedTo: 'user-1', title: 'Fix bug' });
+            repo.findUserInOrg.mockResolvedValue({ id: 'user-2', email: 'user-2@co.com' }); // for assignee and performer calls
+            repo.update.mockResolvedValue({ id: 'task-1', assignedTo: 'user-2', title: 'Fix bug' });
 
             await service.update('task-1', { assignedTo: 'user-2' }, currentUser);
 
             expect(audit.log).toHaveBeenCalledWith(
                 expect.objectContaining({
                     action: 'TASK_ASSIGNED',
-                    metadata: expect.objectContaining({ previousAssignee: 'user-1' }),
+                    metadata: expect.objectContaining({
+                        taskTitle: 'Fix bug',
+                        previousAssignee: 'user-1',
+                        assigneeEmail: 'user-2@co.com',
+                    }),
                 }),
             );
         });
 
         it('should log TASK_STATUS_CHANGED on status update', async () => {
-            repo.findById.mockResolvedValue({ id: 'task-1', organizationId: 'org-1', status: 'TODO' });
-            repo.update.mockResolvedValue({ id: 'task-1', status: 'DONE' });
+            repo.findById.mockResolvedValue({ id: 'task-1', organizationId: 'org-1', status: 'TODO', title: 'Fix bug' });
+            repo.findUserInOrg.mockResolvedValue({ id: 'user-1', email: 'user-1@co.com' });
+            repo.update.mockResolvedValue({ id: 'task-1', status: 'DONE', title: 'Fix bug' });
 
             await service.update('task-1', { status: 'DONE' }, currentUser);
 
             expect(audit.log).toHaveBeenCalledWith(
                 expect.objectContaining({
                     action: 'TASK_STATUS_CHANGED',
-                    metadata: expect.objectContaining({ from: 'TODO', to: 'DONE' }),
+                    metadata: expect.objectContaining({
+                        taskTitle: 'Fix bug',
+                        from: 'TODO',
+                        to: 'DONE',
+                    }),
                 }),
             );
         });
@@ -274,12 +297,20 @@ describe('TasksService', () => {
 
         it('should log TASK_DELETED audit event', async () => {
             repo.findById.mockResolvedValue({ id: 'task-1', title: 'Fix bug' });
+            repo.findUserInOrg.mockResolvedValue({ id: 'user-1', email: 'user-1@co.com' });
             repo.softDelete.mockResolvedValue({});
 
             await service.remove('task-1', 'org-1', 'user-1');
 
             expect(audit.log).toHaveBeenCalledWith(
-                expect.objectContaining({ action: 'TASK_DELETED', entity: 'Task' }),
+                expect.objectContaining({
+                    action: 'TASK_DELETED',
+                    entity: 'Task',
+                    metadata: expect.objectContaining({
+                        title: 'Fix bug',
+                        performerEmail: 'user-1@co.com',
+                    }),
+                }),
             );
         });
     });

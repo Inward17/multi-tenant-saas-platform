@@ -8,12 +8,25 @@ import { NotificationsProcessor } from './notifications.processor';
         BullModule.forRootAsync({
             imports: [ConfigModule],
             inject: [ConfigService],
-            useFactory: (config: ConfigService) => ({
-                connection: {
-                    host: new URL(config.get('REDIS_URL', 'redis://localhost:6379')).hostname,
-                    port: parseInt(new URL(config.get('REDIS_URL', 'redis://localhost:6379')).port || '6379'),
-                },
-            }),
+            useFactory: (config: ConfigService) => {
+                const redisUrl = config.get('REDIS_URL', 'redis://localhost:6379');
+                const url = new URL(redisUrl);
+                return {
+                    connection: {
+                        host: url.hostname,
+                        port: parseInt(url.port || '6379'),
+                        username: url.username,
+                        password: url.password,
+                        // Upstash/Render requires TLS. 'rediss:' indicates TLS.
+                        // We set generic TLS options to ensure connection.
+                        ...(url.protocol === 'rediss:' && {
+                            tls: {
+                                rejectUnauthorized: false,
+                            },
+                        }),
+                    },
+                };
+            },
         }),
         BullModule.registerQueue({ name: 'notifications' }),
     ],

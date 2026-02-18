@@ -43,8 +43,25 @@ export class AuditService {
             (this.prisma as any).auditLog.count({ where: { organizationId } }),
         ]);
 
+        // Enrich logs with performer email if missing (for historical data)
+        const userIds = [...new Set(data.map((l) => l.userId).filter((id) => id !== 'system'))];
+        const users = await (this.prisma as any).user.findMany({
+            where: { id: { in: userIds } },
+            select: { id: true, email: true },
+        });
+
+        const userMap = new Map(users.map((u) => [u.id, u.email]));
+
+        const enrichedData = data.map((log) => {
+            const meta = (log.metadata as Record<string, any>) || {};
+            if (!meta.performerEmail && log.userId !== 'system') {
+                meta.performerEmail = userMap.get(log.userId) || 'Unknown';
+            }
+            return { ...log, metadata: meta };
+        });
+
         return {
-            data,
+            data: enrichedData,
             meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
         };
     }
