@@ -16,7 +16,8 @@ const activityCallbacks: Callback[] = [];
 export function connectSocket() {
     if (!browser || socket?.connected) return;
 
-    socket = io('http://localhost:3000', {
+    const url = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+    socket = io(url, {
         withCredentials: true,
         transports: ['websocket', 'polling'],
     });
