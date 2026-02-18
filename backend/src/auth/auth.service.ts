@@ -58,17 +58,28 @@ export class AuthService {
     }
 
     async login(dto: LoginDto) {
+        console.log(`[AuthDebug] Login attempt for: ${dto.email}`);
         const user = await this.prisma.user.findUnique({
             where: { email: dto.email },
             include: { organization: true },
         });
 
         if (!user) {
+            console.log(`[AuthDebug] User not found: ${dto.email}`);
+            throw new UnauthorizedException('Invalid credentials');
+        } else {
+            console.log(`[AuthDebug] User found: ${user.id} (Role: ${user.role})`);
+        }
+
+        if (!user) {
             throw new UnauthorizedException('Invalid credentials');
         }
 
         const passwordMatch = await bcrypt.compare(dto.password, user.password);
+        console.log(`[AuthDebug] Password match result: ${passwordMatch}`);
+
         if (!passwordMatch) {
+            console.log(`[AuthDebug] Password mismatch for user: ${user.email}`);
             throw new UnauthorizedException('Invalid credentials');
         }
 
