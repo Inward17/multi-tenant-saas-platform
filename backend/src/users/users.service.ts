@@ -41,7 +41,7 @@ export class UsersService {
             throw new ConflictException('Email already registered');
         }
 
-        const hashedPassword = await bcrypt.hash(dto.password, 10);
+        const hashedPassword = await bcrypt.hash(dto.password, 12);
         const role = dto.role || 'MEMBER';
 
         const user = await this.prisma.user.create({
@@ -145,7 +145,7 @@ export class UsersService {
             throw new UnauthorizedException('Current password is incorrect');
         }
 
-        const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+        const hashedPassword = await bcrypt.hash(dto.newPassword, 12);
         await this.prisma.user.update({
             where: { id: userId },
             data: { password: hashedPassword },

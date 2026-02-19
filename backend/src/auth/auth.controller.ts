@@ -25,6 +25,11 @@ export class AuthController {
     @Throttle({ default: { limit: 5, ttl: 60000 } })
     @Post('register')
     async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+        // Honeypot trap
+        if (dto._gotcha) {
+            return { user: { id: 'fake-id', email: dto.email, role: 'OWNER', organizationId: 'fake-org' } };
+        }
+
         const { token, user } = await this.authService.register(dto);
         res.cookie('access_token', token, COOKIE_OPTIONS);
         return { user };

@@ -24,7 +24,7 @@ export class AuthService {
             throw new ConflictException('Email already registered');
         }
 
-        const hashedPassword = await bcrypt.hash(dto.password, 10);
+        const hashedPassword = await bcrypt.hash(dto.password, 12);
 
         const result = await this.prisma.$transaction(async (tx) => {
             const organization = await tx.organization.create({

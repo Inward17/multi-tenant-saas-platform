@@ -4,8 +4,16 @@ import { ValidationPipe } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
+import helmet from 'helmet';
+import { NestExpressApplication } from '@nestjs/platform-express';
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Trust proxy for rate limiting behind load balancers (Render)
+  app.set('trust proxy', 1);
+
+  // Security headers
+  app.use(helmet());
 
   // Cookie parser — MUST be before guards
   app.use(cookieParser());

@@ -9,12 +9,13 @@
   let organizationName = $state("");
   let email = $state("");
   let password = $state("");
+  let _gotcha = $state(""); // Honeypot
   let loading = $state(false);
 
   async function handleSubmit() {
     loading = true;
     try {
-      const res = await register({ organizationName, email, password });
+      const res = await register({ organizationName, email, password, _gotcha });
       setUser(res.user);
       goto("/dashboard");
     } catch (e: any) {
@@ -85,6 +86,19 @@
         minlength={6}
         id="reg-password"
       />
+
+      <!-- Honeypot field (hidden from humans) -->
+      <div style="opacity: 0; position: absolute; top: 0; left: 0; height: 0; width: 0; z-index: -1;">
+        <label for="_gotcha">Do not fill this field</label>
+        <input
+          type="text"
+          name="_gotcha"
+          id="_gotcha"
+          bind:value={_gotcha}
+          tabindex="-1"
+          autocomplete="off"
+        />
+      </div>
       <Button variant="primary" type="submit" fullWidth {loading}
         >Create Workspace</Button
       >
