@@ -23,7 +23,8 @@ import { envValidationSchema } from './common/env.validation';
             isGlobal: true,
             validationSchema: envValidationSchema,
         }),
-        ThrottlerModule.forRoot([{ ttl: 60000, limit: 30 }]),
+        // Per IP: one page view makes several API calls and offices share an IP. Login/register stay at 5/min.
+        ThrottlerModule.forRoot([{ ttl: 60000, limit: 300 }]),
         PrismaModule,
         AuthModule,
         OrganizationsModule,
