@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
+import { API_BASE } from '$lib/api/client';
 
 export const socketConnected = writable(false);
 
@@ -16,8 +17,7 @@ const activityCallbacks: Callback[] = [];
 export function connectSocket() {
     if (!browser || socket?.connected) return;
 
-    const url = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
-    socket = io(url, {
+    socket = io(API_BASE, {
         withCredentials: true,
         transports: ['websocket', 'polling'],
     });

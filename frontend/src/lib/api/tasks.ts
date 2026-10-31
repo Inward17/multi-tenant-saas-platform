@@ -44,7 +44,7 @@ export function updateTask(id: string, data: {
     title?: string;
     description?: string;
     status?: string;
-    assignedTo?: string;
+    assignedTo?: string | null;
 }) {
     return api<Task>(`/tasks/${id}`, { method: 'PATCH', body: data });
 }

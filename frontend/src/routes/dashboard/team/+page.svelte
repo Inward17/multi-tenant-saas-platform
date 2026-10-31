@@ -10,11 +10,15 @@
     import { get } from "svelte/store";
     import { toastSuccess, toastError } from "$lib/stores/toast";
     import { formatDate } from "$lib/utils/format";
+    import { UserPlus } from "@lucide/svelte";
+    import Avatar from "$lib/components/ui/Avatar.svelte";
     import Badge from "$lib/components/ui/Badge.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Card from "$lib/components/ui/Card.svelte";
+    import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
     import Select from "$lib/components/ui/Select.svelte";
+    import SkeletonLoader from "$lib/components/ui/SkeletonLoader.svelte";
 
     let members = $state<TeamMember[]>([]);
     let loading = $state(true);
@@ -91,220 +95,92 @@
     <title>Team — TaskFlow</title>
 </svelte:head>
 
-<div class="team-page fade-in">
-    <div class="team-header">
+<div class="grid gap-6">
+    <div class="flex flex-wrap items-end justify-between gap-4">
         <div>
-            <h1>Team Members</h1>
-            <p class="team-sub">
-                {members.length} member{members.length !== 1 ? "s" : ""} in your
-                organization
+            <h2 class="text-2xl font-semibold tracking-tight">Team</h2>
+            <p class="text-sm text-muted-foreground">
+                {members.length} member{members.length !== 1 ? "s" : ""} in your organization
             </p>
         </div>
         {#if canInvite}
-            <Button
-                variant={showInvite ? "secondary" : "primary"}
-                onclick={() => (showInvite = !showInvite)}
-            >
-                {showInvite ? "Cancel" : "+ Add Member"}
+            <Button onclick={() => (showInvite = true)}>
+                <UserPlus />
+                Add member
             </Button>
         {/if}
     </div>
 
-    {#if showInvite}
-        <Card>
-            <div class="invite-form">
-                <h3>Add New Member</h3>
-                <div class="invite-fields">
-                    <Input
-                        label="Email"
-                        id="invEmail"
-                        type="email"
-                        bind:value={inviteEmail}
-                        placeholder="member@company.com"
-                    />
-                    <Input
-                        label="Temporary Password"
-                        id="invPw"
-                        type="password"
-                        bind:value={invitePassword}
-                        placeholder="Min 8 characters"
-                    />
-                    <Select
-                        label="Role"
-                        id="invRole"
-                        bind:value={inviteRole}
-                        options={roleOptions}
-                    />
-                </div>
-                <div class="invite-actions">
-                    <Button
-                        variant="primary"
-                        onclick={handleInvite}
-                        loading={inviteSaving}
-                    >
-                        Add Member
-                    </Button>
-                </div>
-            </div>
-        </Card>
-    {/if}
-
     {#if loading}
-        <p class="loading-text">Loading team...</p>
+        <SkeletonLoader variant="row" count={4} />
     {:else}
-        <div class="members-list">
-            {#each members as member}
-                <div class="member-row">
-                    <div class="member-avatar">
-                        {member.email[0].toUpperCase()}
+        <Card class="divide-y">
+            {#each members as member (member.id)}
+                <div class="flex items-center gap-4 px-5 py-3.5">
+                    <Avatar email={member.email} class="size-9 text-sm" />
+                    <div class="grid min-w-0 flex-1">
+                        <span class="truncate font-medium">
+                            {member.email}
+                            {#if member.id === currentUser?.id}
+                                <span class="font-normal text-muted-foreground">(you)</span>
+                            {/if}
+                        </span>
+                        <span class="text-xs text-muted-foreground">Joined {formatDate(member.createdAt)}</span>
                     </div>
-                    <div class="member-info">
-                        <span class="member-email">{member.email}</span>
-                        <span class="member-date"
-                            >Joined {formatDate(member.createdAt)}</span
-                        >
-                    </div>
-                    <div class="member-role">
-                        {#if isOwner && member.role !== "OWNER" && member.id !== currentUser?.id}
-                            <select
-                                class="role-select"
-                                value={member.role}
-                                onchange={(e) =>
-                                    handleRoleChange(
-                                        member.id,
-                                        (e.target as HTMLSelectElement).value,
-                                    )}
-                            >
-                                <option value="ADMIN">Admin</option>
-                                <option value="MEMBER">Member</option>
-                            </select>
-                        {:else}
-                            <Badge variant={roleVariant(member.role)}
-                                >{member.role}</Badge
-                            >
-                        {/if}
-                    </div>
+                    {#if isOwner && member.role !== "OWNER" && member.id !== currentUser?.id}
+                        <Select
+                            size="sm"
+                            class="w-28"
+                            aria-label="Role for {member.email}"
+                            value={member.role}
+                            options={roleOptions}
+                            onchange={(e) => handleRoleChange(member.id, (e.target as HTMLSelectElement).value)}
+                        />
+                    {:else}
+                        <Badge variant={roleVariant(member.role)}>{member.role.toLowerCase()}</Badge>
+                    {/if}
                 </div>
             {/each}
-        </div>
+        </Card>
     {/if}
 </div>
 
-<style>
-    .team-page {
-        max-width: 800px;
-    }
-    .team-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        margin-bottom: 1.5rem;
-    }
-    .team-header h1 {
-        font-size: 1.3rem;
-        font-weight: 700;
-    }
-    .team-sub {
-        color: var(--text-secondary);
-        font-size: 0.85rem;
-        margin-top: 0.25rem;
-    }
-
-    /* ─── Invite Form ─── */
-    .invite-form {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    .invite-form h3 {
-        font-size: 0.95rem;
-        font-weight: 600;
-    }
-    .invite-fields {
-        display: grid;
-        grid-template-columns: 1fr 1fr 140px;
-        gap: 0.75rem;
-    }
-    .invite-actions {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    /* ─── Members List ─── */
-    .members-list {
-        display: flex;
-        flex-direction: column;
-        background: var(--bg-secondary);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-md);
-        overflow: hidden;
-    }
-    .member-row {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding: 0.85rem 1.25rem;
-        border-bottom: 1px solid var(--border);
-        transition: background var(--transition);
-    }
-    .member-row:last-child {
-        border-bottom: none;
-    }
-    .member-row:hover {
-        background: var(--bg-card-hover);
-    }
-    .member-avatar {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #6c63ff, #2dd4bf);
-        color: white;
-        font-weight: 700;
-        font-size: 0.85rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-    .member-info {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 0.15rem;
-        min-width: 0;
-    }
-    .member-email {
-        font-size: 0.88rem;
-        font-weight: 500;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    .member-date {
-        font-size: 0.72rem;
-        color: var(--text-muted);
-    }
-    .member-role {
-        flex-shrink: 0;
-    }
-    .role-select {
-        padding: 0.35rem 0.5rem;
-        background: var(--bg-primary);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-xs);
-        color: var(--text-primary);
-        font-size: 0.78rem;
-        cursor: pointer;
-        outline: none;
-        transition: border-color var(--transition);
-    }
-    .role-select:focus {
-        border-color: var(--accent);
-    }
-
-    .loading-text {
-        color: var(--text-muted);
-        font-size: 0.85rem;
-    }
-</style>
+<Dialog
+    open={showInvite}
+    title="Add member"
+    description="Create an account in this workspace. Share the temporary password with them securely."
+    onclose={() => (showInvite = false)}
+>
+    <form
+        onsubmit={(e) => {
+            e.preventDefault();
+            handleInvite();
+        }}
+        class="grid gap-4"
+    >
+        <Input
+            label="Email"
+            id="invEmail"
+            type="email"
+            autocomplete="off"
+            bind:value={inviteEmail}
+            placeholder="member@company.com"
+            required
+        />
+        <Input
+            label="Temporary password"
+            id="invPw"
+            type="password"
+            autocomplete="new-password"
+            bind:value={invitePassword}
+            placeholder="At least 8 characters"
+            minlength={8}
+            required
+        />
+        <Select label="Role" id="invRole" bind:value={inviteRole} options={roleOptions} />
+        <div class="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onclick={() => (showInvite = false)}>Cancel</Button>
+            <Button type="submit" loading={inviteSaving}>Add member</Button>
+        </div>
+    </form>
+</Dialog>

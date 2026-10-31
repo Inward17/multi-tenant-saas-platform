@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { goto } from "$app/navigation";
+    import { ArrowRight, FolderKanban, ListTodo, Users } from "@lucide/svelte";
     import { getOrganization, type Organization } from "$lib/api/organizations";
     import Card from "$lib/components/ui/Card.svelte";
     import SkeletonLoader from "$lib/components/ui/SkeletonLoader.svelte";
@@ -21,198 +21,66 @@
     const stats = $derived(
         org
             ? [
-                  {
-                      icon: "📁",
-                      value: org._count.projects,
-                      label: "Projects",
-                      href: "/dashboard/projects",
-                      color: "#6c63ff",
-                  },
-                  {
-                      icon: "✅",
-                      value: org._count.tasks,
-                      label: "Tasks",
-                      href: "/dashboard/tasks",
-                      color: "#2dd4bf",
-                  },
-                  {
-                      icon: "👥",
-                      value: org._count.users,
-                      label: "Members",
-                      href: null,
-                      color: "#fbbf24",
-                  },
+                  { icon: FolderKanban, value: org._count.projects, label: "Projects", href: "/dashboard/projects" },
+                  { icon: ListTodo, value: org._count.tasks, label: "Tasks", href: "/dashboard/tasks" },
+                  { icon: Users, value: org._count.users, label: "Members", href: "/dashboard/team" },
               ]
             : [],
     );
+
+    const actions = [
+        { icon: FolderKanban, title: "View projects", desc: "Manage your team's projects", href: "/dashboard/projects" },
+        { icon: ListTodo, title: "View tasks", desc: "Track and assign work items", href: "/dashboard/tasks" },
+    ];
 </script>
 
 <svelte:head>
     <title>Dashboard — TaskFlow</title>
 </svelte:head>
 
-<div class="overview fade-in">
-    <div class="welcome-section">
-        <h1>Welcome back 👋</h1>
-        <p class="welcome-sub">
-            Here's what's happening in <strong
-                >{data.user.organizationName}</strong
-            >
+<div class="grid gap-8">
+    <div>
+        <h2 class="text-2xl font-semibold tracking-tight">Welcome back</h2>
+        <p class="text-muted-foreground">
+            Here's what's happening in <span class="font-medium text-foreground">{data.user.organizationName}</span>
         </p>
     </div>
 
     {#if loading}
         <SkeletonLoader variant="stat" count={3} />
     {:else if org}
-        <div class="stats-row">
-            {#each stats as stat, i}
-                <a
-                    href={stat.href ?? "#"}
-                    class="stat-link"
-                    style="animation-delay: {i * 0.08}s"
-                >
-                    <Card hover={!!stat.href}>
-                        <div class="stat-inner">
-                            <div
-                                class="stat-icon-wrap"
-                                style="--stat-color: {stat.color}"
-                            >
-                                <span class="stat-emoji">{stat.icon}</span>
-                            </div>
-                            <div class="stat-data">
-                                <span class="stat-value">{stat.value}</span>
-                                <span class="stat-label">{stat.label}</span>
-                            </div>
+        <div class="grid gap-4 sm:grid-cols-3">
+            {#each stats as stat (stat.label)}
+                <a href={stat.href} class="group rounded-xl focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none">
+                    <Card class="p-5 transition-colors group-hover:bg-accent/50">
+                        <div class="flex items-center justify-between text-sm text-muted-foreground">
+                            {stat.label}
+                            <stat.icon class="size-4" />
                         </div>
+                        <p class="mt-2 text-3xl font-semibold tabular-nums">{stat.value}</p>
                     </Card>
                 </a>
             {/each}
         </div>
 
-        <div class="section">
-            <h2>Quick Actions</h2>
-            <div class="actions-grid">
-                <Card hover onclick={() => goto("/dashboard/projects")}>
-                    <div class="action-card">
-                        <div class="action-icon">📁</div>
-                        <div>
-                            <strong>View Projects</strong>
-                            <p>Manage your team's projects</p>
-                        </div>
-                        <span class="action-arrow">→</span>
-                    </div>
-                </Card>
-                <Card hover onclick={() => goto("/dashboard/tasks")}>
-                    <div class="action-card">
-                        <div class="action-icon">✅</div>
-                        <div>
-                            <strong>View Tasks</strong>
-                            <p>Track and assign work items</p>
-                        </div>
-                        <span class="action-arrow">→</span>
-                    </div>
-                </Card>
+        <section class="grid gap-3">
+            <h3 class="text-sm font-medium text-muted-foreground">Quick actions</h3>
+            <div class="grid gap-4 sm:grid-cols-2">
+                {#each actions as action (action.href)}
+                    <a href={action.href} class="group rounded-xl focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none">
+                        <Card class="flex items-center gap-4 p-5 transition-colors group-hover:bg-accent/50">
+                            <div class="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                <action.icon class="size-5" />
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-medium">{action.title}</p>
+                                <p class="text-sm text-muted-foreground">{action.desc}</p>
+                            </div>
+                            <ArrowRight class="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                        </Card>
+                    </a>
+                {/each}
             </div>
-        </div>
+        </section>
     {/if}
 </div>
-
-<style>
-    .overview h1 {
-        font-size: 1.5rem;
-        font-weight: 700;
-    }
-    .welcome-section {
-        margin-bottom: 2rem;
-    }
-    .welcome-sub {
-        color: var(--text-secondary);
-        margin-top: 0.35rem;
-        font-size: 0.95rem;
-    }
-    .welcome-sub strong {
-        color: var(--text-primary);
-    }
-
-    .stats-row {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 1rem;
-        margin-bottom: 2.5rem;
-    }
-    .stat-link {
-        text-decoration: none;
-        color: inherit;
-        animation: fadeIn 0.35s ease-out both;
-    }
-    .stat-inner {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-    .stat-icon-wrap {
-        width: 44px;
-        height: 44px;
-        border-radius: 12px;
-        background: color-mix(in srgb, var(--stat-color) 12%, transparent);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-    .stat-emoji {
-        font-size: 1.25rem;
-    }
-    .stat-data {
-        display: flex;
-        flex-direction: column;
-    }
-    .stat-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        line-height: 1.2;
-    }
-    .stat-label {
-        font-size: 0.8rem;
-        color: var(--text-secondary);
-    }
-
-    .section h2 {
-        font-size: 1rem;
-        font-weight: 600;
-        margin-bottom: 1rem;
-        color: var(--text-secondary);
-    }
-    .actions-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-    }
-    .action-card {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-    .action-icon {
-        font-size: 1.5rem;
-    }
-    .action-card strong {
-        font-size: 0.9rem;
-        display: block;
-        margin-bottom: 0.15rem;
-    }
-    .action-card p {
-        font-size: 0.8rem;
-        color: var(--text-secondary);
-        margin: 0;
-    }
-    .action-arrow {
-        margin-left: auto;
-        color: var(--text-muted);
-        font-size: 1.2rem;
-        transition: transform var(--transition);
-    }
-    :global(.action-card:hover .action-arrow) {
-        transform: translateX(3px);
-    }
-</style>
