@@ -50,8 +50,11 @@ export class AuthController {
     }
 
     @Post('logout')
-    async logout(@Res({ passthrough: true }) res: Response) {
-        res.clearCookie('access_token', { path: '/' });
+    async logout(@CurrentUser('userId') userId: string, @Res({ passthrough: true }) res: Response) {
+        await this.authService.revokeSessions(userId);
+        // Must match the attributes the cookie was set with, or cross-site browsers ignore the clear
+        const { maxAge, ...clearOptions } = COOKIE_OPTIONS;
+        res.clearCookie('access_token', clearOptions);
         return { message: 'Logged out successfully' };
     }
 }

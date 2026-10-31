@@ -4,7 +4,7 @@ import { TasksRepository } from './tasks.repository';
 import { AuditService } from '../audit/audit.service';
 import { EventsGateway } from '../events/events.gateway';
 import { getQueueToken } from '@nestjs/bullmq';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 
 describe('TasksService', () => {
     let service: TasksService;
@@ -160,6 +160,20 @@ describe('TasksService', () => {
             expect(result.meta.limit).toBe(10);
         });
 
+        it('should cap limit at 100 and floor page at 1', async () => {
+            repo.findMany.mockResolvedValue({ data: [], total: 0 });
+
+            const result = await service.findAll('org-1', { page: -3, limit: 1000000 });
+
+            expect(result.meta.page).toBe(1);
+            expect(result.meta.limit).toBe(100);
+            expect(repo.findMany).toHaveBeenCalledWith('org-1', expect.objectContaining({ skip: 0, take: 100 }));
+        });
+
+        it('should reject an unknown status filter', async () => {
+            await expect(service.findAll('org-1', { status: 'BOGUS' })).rejects.toThrow(BadRequestException);
+        });
+
         it('should pass search parameter to repository', async () => {
             repo.findMany.mockResolvedValue({ data: [], total: 0 });
 
@@ -219,6 +233,16 @@ describe('TasksService', () => {
 
             const result = await service.update('task-1', { status: 'IN_PROGRESS' }, member);
             expect(result.status).toBe('IN_PROGRESS');
+        });
+
+        it('should forbid MEMBER from changing fields other than status', async () => {
+            const member = { userId: 'user-2', organizationId: 'org-1', role: 'MEMBER' };
+            repo.findById.mockResolvedValue({ id: 'task-1', organizationId: 'org-1', assignedTo: 'user-2' });
+
+            await expect(
+                service.update('task-1', { status: 'DONE', assignedTo: 'user-3' }, member),
+            ).rejects.toThrow(ForbiddenException);
+            expect(repo.update).not.toHaveBeenCalled();
         });
 
         it('should throw NotFoundException for cross-org update', async () => {

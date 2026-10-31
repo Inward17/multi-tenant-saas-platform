@@ -80,7 +80,7 @@ multi-tenant-saas-platform/
 
 ### Business Logic
 - **Project & Task Management** — Full CRUD with repository pattern
-- **Team Management** — Add/remove members, role management
+- **Team Management** — Add members, role management
 - **Audit Logging** — Comprehensive trail of user actions
 - **Metrics Dashboard** — Aggregated stats for organizations
 
@@ -131,6 +131,7 @@ Create `.env`:
 DATABASE_URL="postgresql://user:password@localhost:5432/saas_db?schema=public"
 REDIS_URL="redis://localhost:6379"
 JWT_SECRET="super-secret-key-min-16-chars"
+FRONTEND_URL="http://localhost:5173"
 PORT=3000
 ```
 
@@ -142,7 +143,7 @@ docker run -d -p 6379:6379 redis:7-alpine
 
 Run Migrations & Start:
 ```bash
-npx prisma migrate dev --name init
+npx prisma migrate deploy
 npm run start:dev
 ```
 
@@ -151,6 +152,7 @@ npm run start:dev
 ```bash
 cd frontend
 npm install
+echo 'PUBLIC_API_URL="http://localhost:3000"' > .env
 npm run dev
 ```
 
@@ -161,7 +163,6 @@ npm run dev
 - `npm run start:dev` — Watch mode
 - `npm run build` — Compile to `dist/`
 - `npm run test` — Unit tests
-- `npm run test:e2e` — End-to-end tests
 
 ### Frontend
 

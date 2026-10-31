@@ -9,6 +9,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
+export interface JwtPayload {
+    userId: string;
+    organizationId: string;
+    role: string;
+    tv: number;
+}
+
+// Compared against when the email is unknown, so response time doesn't reveal which emails exist
+const DUMMY_HASH = bcrypt.hashSync('timing-equalizer', 12);
+
 @Injectable()
 export class AuthService {
     constructor(
@@ -43,7 +53,7 @@ export class AuthService {
             return { user, organization };
         });
 
-        const token = this.signToken(result.user.id, result.organization.id, result.user.role);
+        const token = this.signToken(result.user);
 
         return {
             token,
@@ -58,32 +68,17 @@ export class AuthService {
     }
 
     async login(dto: LoginDto) {
-        console.log(`[AuthDebug] Login attempt for: ${dto.email}`);
         const user = await this.prisma.user.findUnique({
             where: { email: dto.email },
             include: { organization: true },
         });
 
-        if (!user) {
-            console.log(`[AuthDebug] User not found: ${dto.email}`);
-            throw new UnauthorizedException('Invalid credentials');
-        } else {
-            console.log(`[AuthDebug] User found: ${user.id} (Role: ${user.role})`);
-        }
-
-        if (!user) {
+        const passwordMatch = await bcrypt.compare(dto.password, user?.password ?? DUMMY_HASH);
+        if (!user || !passwordMatch) {
             throw new UnauthorizedException('Invalid credentials');
         }
 
-        const passwordMatch = await bcrypt.compare(dto.password, user.password);
-        console.log(`[AuthDebug] Password match result: ${passwordMatch}`);
-
-        if (!passwordMatch) {
-            console.log(`[AuthDebug] Password mismatch for user: ${user.email}`);
-            throw new UnauthorizedException('Invalid credentials');
-        }
-
-        const token = this.signToken(user.id, user.organizationId, user.role);
+        const token = this.signToken(user);
 
         return {
             token,
@@ -116,7 +111,30 @@ export class AuthService {
         };
     }
 
-    private signToken(userId: string, organizationId: string, role: string): string {
-        return this.jwtService.sign({ userId, organizationId, role });
+    async validateSession(payload: JwtPayload) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: payload.userId },
+            select: { id: true, organizationId: true, role: true, tokenVersion: true },
+        });
+        if (!user || user.tokenVersion !== payload.tv) return null;
+        return { userId: user.id, organizationId: user.organizationId, role: user.role };
+    }
+
+    // Bumping tokenVersion invalidates every token issued to this user
+    async revokeSessions(userId: string) {
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { tokenVersion: { increment: 1 } },
+        });
+    }
+
+    private signToken(user: { id: string; organizationId: string; role: string; tokenVersion: number }): string {
+        const payload: JwtPayload = {
+            userId: user.id,
+            organizationId: user.organizationId,
+            role: user.role,
+            tv: user.tokenVersion,
+        };
+        return this.jwtService.sign(payload);
     }
 }

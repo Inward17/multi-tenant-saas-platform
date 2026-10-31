@@ -17,13 +17,8 @@ import { NotificationsProcessor } from './notifications.processor';
                         port: parseInt(url.port || '6379'),
                         username: url.username,
                         password: url.password,
-                        // Upstash/Render requires TLS. 'rediss:' indicates TLS.
-                        // We set generic TLS options to ensure connection.
-                        ...(url.protocol === 'rediss:' && {
-                            tls: {
-                                rejectUnauthorized: false,
-                            },
-                        }),
+                        // Upstash/Render require TLS ('rediss:'); certificates are verified
+                        ...(url.protocol === 'rediss:' && { tls: {} }),
                     },
                 };
             },

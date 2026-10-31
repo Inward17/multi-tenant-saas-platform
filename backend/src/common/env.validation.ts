@@ -10,8 +10,8 @@ export const envValidationSchema = Joi.object({
     PORT: Joi.number().default(3000)
         .description('Server port'),
 
-    COOKIE_DOMAIN: Joi.string().optional()
-        .description('Domain for auth cookies'),
+    FRONTEND_URL: Joi.string().uri().default('http://localhost:5173')
+        .description('Frontend origin allowed by CORS (HTTP and WebSocket)'),
 
     NODE_ENV: Joi.string()
         .valid('development', 'production', 'test')

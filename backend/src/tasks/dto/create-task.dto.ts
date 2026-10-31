@@ -20,6 +20,7 @@ export class CreateTaskDto {
     projectId: string;
 
     @IsString()
+    @IsNotEmpty()
     @IsOptional()
     assignedTo?: string;
 }

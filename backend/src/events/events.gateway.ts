@@ -8,10 +8,13 @@ import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 import * as cookie from 'cookie';
+import { AuthService } from '../auth/auth.service';
+
+const adminRoom = (organizationId: string) => `org:${organizationId}:admins`;
 
 @WebSocketGateway({
     cors: {
-        origin: 'http://localhost:5173',
+        origin: process.env.FRONTEND_URL || 'http://localhost:5173',
         credentials: true,
     },
 })
@@ -21,7 +24,10 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     private readonly logger = new Logger(EventsGateway.name);
 
-    constructor(private jwtService: JwtService) { }
+    constructor(
+        private jwtService: JwtService,
+        private authService: AuthService,
+    ) { }
 
     async handleConnection(client: Socket) {
         try {
@@ -37,9 +43,14 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 return;
             }
 
-            // Validate JWT — never trust client-sent orgId
-            const payload = this.jwtService.verify(token);
-            const { userId, organizationId, role } = payload;
+            // Validate JWT — never trust client-sent orgId; role/org come from the DB
+            const session = await this.authService.validateSession(this.jwtService.verify(token));
+            if (!session) {
+                this.logger.warn(`Connection rejected: revoked session — ${client.id}`);
+                client.disconnect();
+                return;
+            }
+            const { userId, organizationId, role } = session;
 
             // Attach validated user data to socket
             client.data.userId = userId;
@@ -49,6 +60,8 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
             // Join organization room
             const room = `org:${organizationId}`;
             client.join(room);
+            // Audit activity is OWNER/ADMIN only, same as GET /audit
+            if (role === 'OWNER' || role === 'ADMIN') client.join(adminRoom(organizationId));
 
             this.logger.log(
                 `Connected: userId=${userId} orgId=${organizationId} room=${room} socketId=${client.id}`,
@@ -82,6 +95,6 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     broadcastActivity(organizationId: string, activity: any) {
-        this.server.to(`org:${organizationId}`).emit('activityCreated', activity);
+        this.server.to(adminRoom(organizationId)).emit('activityCreated', activity);
     }
 }

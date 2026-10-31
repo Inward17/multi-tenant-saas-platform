@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsNotEmpty } from 'class-validator';
 
 enum TaskStatus { TODO = 'TODO', IN_PROGRESS = 'IN_PROGRESS', DONE = 'DONE' }
 
@@ -16,6 +16,7 @@ export class UpdateTaskDto {
     status?: string;
 
     @IsString()
+    @IsNotEmpty()
     @IsOptional()
-    assignedTo?: string;
+    assignedTo?: string | null;
 }

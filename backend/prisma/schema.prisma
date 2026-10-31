@@ -35,6 +35,7 @@ model User {
   password       String
   role           Role     @default(MEMBER)
   organizationId String
+  tokenVersion   Int      @default(0)
   createdAt      DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
