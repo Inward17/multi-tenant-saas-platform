@@ -7,7 +7,6 @@
         type TeamMember,
     } from "$lib/api/team";
     import { user } from "$lib/stores/auth";
-    import { get } from "svelte/store";
     import { toastSuccess, toastError } from "$lib/stores/toast";
     import { formatDate } from "$lib/utils/format";
     import { UserPlus } from "@lucide/svelte";
@@ -22,7 +21,8 @@
 
     let members = $state<TeamMember[]>([]);
     let loading = $state(true);
-    const currentUser = get(user);
+    // Reactive: the dashboard layout sets the user after this page initializes on a hard load
+    const currentUser = $derived($user);
 
     // ─── Invite Form ─────────────────────────────
     let showInvite = $state(false);
