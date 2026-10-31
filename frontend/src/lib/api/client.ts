@@ -1,6 +1,7 @@
 import { env } from '$env/dynamic/public';
 
-export const API_BASE = env.PUBLIC_API_URL || 'http://localhost:3000';
+// VITE_API_BASE is the build-time name existing deployments (Vercel) already set
+export const API_BASE = env.PUBLIC_API_URL || import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
 interface FetchOptions {
     method?: string;
