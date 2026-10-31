@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
+import { API_BASE } from '$lib/api/client';
 
 export const socketConnected = writable(false);
 
@@ -16,8 +17,7 @@ const activityCallbacks: Callback[] = [];
 export function connectSocket() {
     if (!browser || socket?.connected) return;
 
-    const url = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
-    socket = io(url, {
+    socket = io(API_BASE, {
         withCredentials: true,
         transports: ['websocket', 'polling'],
     });
@@ -86,6 +86,20 @@ export function onTaskDeleted(cb: Callback): () => void {
     return () => {
         const i = taskDeletedCallbacks.indexOf(cb);
         if (i > -1) taskDeletedCallbacks.splice(i, 1);
+    };
+}
+
+/** Calls `cb` (debounced) after any task is created, updated or deleted, so views can refetch. */
+export function onAnyTaskChange(cb: () => void, delayMs = 250): () => void {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const fire = () => {
+        clearTimeout(timer);
+        timer = setTimeout(cb, delayMs);
+    };
+    const offs = [onTaskCreated(fire), onTaskUpdated(fire), onTaskDeleted(fire)];
+    return () => {
+        clearTimeout(timer);
+        offs.forEach((off) => off());
     };
 }
 

@@ -12,7 +12,7 @@ export interface AuthResponse {
     user: User;
 }
 
-export function register(data: { organizationName: string; email: string; password: string }) {
+export function register(data: { organizationName: string; email: string; password: string; _gotcha?: string }) {
     return api<AuthResponse>('/auth/register', { method: 'POST', body: data });
 }
 

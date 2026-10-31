@@ -2,6 +2,7 @@ import {
     Injectable,
     NotFoundException,
     ForbiddenException,
+    BadRequestException,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -10,6 +11,8 @@ import { AuditService } from '../audit/audit.service';
 import { EventsGateway } from '../events/events.gateway';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+
+const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE'];
 
 @Injectable()
 export class TasksService {
@@ -87,8 +90,11 @@ export class TasksService {
         organizationId: string,
         query: { page?: number; limit?: number; status?: string; search?: string },
     ) {
-        const page = query.page || 1;
-        const limit = query.limit || 10;
+        if (query.status && !TASK_STATUSES.includes(query.status)) {
+            throw new BadRequestException(`status must be one of ${TASK_STATUSES.join(', ')}`);
+        }
+        const page = Math.max(Math.floor(query.page || 1), 1);
+        const limit = Math.min(Math.max(Math.floor(query.limit || 10), 1), 100);
         const skip = (page - 1) * limit;
 
         const { data, total } = await this.repo.findMany(organizationId, {
@@ -118,8 +124,13 @@ export class TasksService {
         const task = await this.repo.findById(id, currentUser.organizationId);
         if (!task) throw new NotFoundException('Task not found');
 
-        if (currentUser.role === 'MEMBER' && task.assignedTo !== currentUser.userId) {
-            throw new ForbiddenException('You can only update tasks assigned to you');
+        if (currentUser.role === 'MEMBER') {
+            if (task.assignedTo !== currentUser.userId) {
+                throw new ForbiddenException('You can only update tasks assigned to you');
+            }
+            if (Object.entries(dto).some(([k, v]) => k !== 'status' && v !== undefined)) {
+                throw new ForbiddenException('Members can only change task status');
+            }
         }
 
         if (dto.assignedTo) {

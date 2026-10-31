@@ -2,41 +2,96 @@
     import { onMount } from "svelte";
     import { page } from "$app/stores";
     import { goto } from "$app/navigation";
-    import {
-        getProject,
-        deleteProject,
-        type ProjectDetail,
-    } from "$lib/api/projects";
+    import { Check, ChevronRight, Folder, ListTodo, Pencil, Plus, Trash2, X } from "@lucide/svelte";
+    import { getProject, updateProject, deleteProject, type ProjectDetail } from "$lib/api/projects";
+    import { getTask, TASK_STATUSES, type Task } from "$lib/api/tasks";
+    import { getUsers, type OrgUser } from "$lib/api/users";
+    import { onAnyTaskChange } from "$lib/realtime/socket";
     import { toastSuccess, toastError } from "$lib/stores/toast";
+    import TaskSheet from "$lib/components/TaskSheet.svelte";
+    import Avatar from "$lib/components/ui/Avatar.svelte";
+    import Badge from "$lib/components/ui/Badge.svelte";
     import Button from "$lib/components/ui/Button.svelte";
     import Card from "$lib/components/ui/Card.svelte";
-    import Badge from "$lib/components/ui/Badge.svelte";
-    import Modal from "$lib/components/ui/Modal.svelte";
+    import Dialog from "$lib/components/ui/Dialog.svelte";
     import EmptyState from "$lib/components/ui/EmptyState.svelte";
+    import { fieldClass } from "$lib/components/ui/Input.svelte";
     import SkeletonLoader from "$lib/components/ui/SkeletonLoader.svelte";
+    import { cn } from "$lib/utils";
     import type { LayoutData } from "../../$types";
 
     let { data }: { data: LayoutData } = $props();
+    const projectId = $page.params.id as string;
+
     let project = $state<ProjectDetail | null>(null);
+    let users = $state<OrgUser[]>([]);
     let loading = $state(true);
-    let showDeleteConfirm = $state(false);
-    let deleting = $state(false);
+
+    async function load() {
+        try {
+            project = await getProject(projectId);
+        } catch (e: any) {
+            toastError(e.message || "Failed to load project");
+        } finally {
+            loading = false;
+        }
+    }
 
     onMount(() => {
-        const id = $page.params.id;
-        if (id) {
-            getProject(id)
-                .then((p) => {
-                    project = p;
-                })
-                .catch((e: any) => {
-                    toastError(e.message || "Failed to load project");
-                })
-                .finally(() => {
-                    loading = false;
-                });
-        }
+        load();
+        getUsers()
+            .then((u) => (users = u))
+            .catch(() => {});
+        return onAnyTaskChange(load);
     });
+
+    const canManage = $derived(data.user.role === "OWNER" || data.user.role === "ADMIN");
+    const canDelete = $derived(data.user.role === "OWNER");
+
+    const groups = $derived(
+        TASK_STATUSES.map((s) => ({ ...s, tasks: project?.tasks.filter((t) => t.status === s.value) ?? [] })).filter(
+            (g) => g.tasks.length,
+        ),
+    );
+
+    // ─── Rename ───
+    let editingName = $state(false);
+    let nameDraft = $state("");
+    let renaming = $state(false);
+
+    async function saveName() {
+        const name = nameDraft.trim();
+        if (!project || !name || name === project.name) {
+            editingName = false;
+            return;
+        }
+        renaming = true;
+        try {
+            const updated = await updateProject(project.id, { name });
+            project.name = updated.name;
+            editingName = false;
+            toastSuccess("Project renamed");
+        } catch (e: any) {
+            toastError(e.message || "Failed to rename project");
+        } finally {
+            renaming = false;
+        }
+    }
+
+    // ─── Task side panel (project payload is partial, so fetch the full task) ───
+    let openTask = $state<Task | null>(null);
+
+    async function showTask(id: string) {
+        try {
+            openTask = await getTask(id);
+        } catch (e: any) {
+            toastError(e.message || "Failed to load task");
+        }
+    }
+
+    // ─── Delete ───
+    let showDeleteConfirm = $state(false);
+    let deleting = $state(false);
 
     async function handleDelete() {
         if (!project) return;
@@ -51,18 +106,6 @@
             deleting = false;
         }
     }
-
-    function statusVariant(status: string): "todo" | "in-progress" | "done" {
-        return status.toLowerCase().replace("_", "-") as any;
-    }
-    function formatStatus(s: string) {
-        return s.replace("_", " ");
-    }
-    function getInitial(email: string) {
-        return email[0].toUpperCase();
-    }
-
-    const canDelete = $derived(data.user.role === "OWNER");
 </script>
 
 <svelte:head>
@@ -72,230 +115,136 @@
 {#if loading}
     <SkeletonLoader variant="row" count={4} />
 {:else if project}
-    <div class="project-detail fade-in">
-        <div class="page-header">
-            <div>
-                <nav class="breadcrumb" aria-label="Breadcrumb">
-                    <a href="/dashboard/projects" class="breadcrumb-link"
-                        >Projects</a
-                    >
-                    <span class="breadcrumb-sep">/</span>
-                    <span class="breadcrumb-current">{project.name}</span>
-                </nav>
-                <div class="title-row">
-                    <div class="project-icon-lg">📁</div>
-                    <div>
-                        <h1>{project.name}</h1>
-                        <p class="subtitle">
-                            {project.tasks.length} task{project.tasks.length !==
-                            1
-                                ? "s"
-                                : ""}
+    <div class="grid grid-cols-1 gap-6">
+        <div class="grid gap-3">
+            <nav class="flex items-center gap-1 text-sm text-muted-foreground" aria-label="Breadcrumb">
+                <a href="/dashboard/projects" class="hover:text-foreground">Projects</a>
+                <ChevronRight class="size-3.5" />
+                <span class="truncate text-foreground" aria-current="page">{project.name}</span>
+            </nav>
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex min-w-0 items-center gap-3">
+                    <div class="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Folder class="size-5" />
+                    </div>
+                    <div class="min-w-0">
+                        {#if editingName}
+                            <form
+                                class="flex items-center gap-1"
+                                onsubmit={(e) => {
+                                    e.preventDefault();
+                                    saveName();
+                                }}
+                            >
+                                <!-- svelte-ignore a11y_autofocus -->
+                                <input
+                                    class={cn(fieldClass, "h-9 text-lg font-semibold md:text-lg")}
+                                    aria-label="Project name"
+                                    bind:value={nameDraft}
+                                    onkeydown={(e) => e.key === "Escape" && (editingName = false)}
+                                    autofocus
+                                />
+                                <Button type="submit" size="icon-sm" variant="ghost" aria-label="Save name" loading={renaming}>
+                                    <Check />
+                                </Button>
+                                <Button size="icon-sm" variant="ghost" aria-label="Cancel rename" onclick={() => (editingName = false)}>
+                                    <X />
+                                </Button>
+                            </form>
+                        {:else}
+                            <div class="flex items-center gap-1">
+                                <h2 class="truncate text-2xl font-semibold tracking-tight">{project.name}</h2>
+                                {#if canManage}
+                                    <Button
+                                        variant="ghost"
+                                        size="icon-sm"
+                                        class="text-muted-foreground"
+                                        aria-label="Rename project"
+                                        onclick={() => {
+                                            nameDraft = project?.name ?? "";
+                                            editingName = true;
+                                        }}
+                                    >
+                                        <Pencil />
+                                    </Button>
+                                {/if}
+                            </div>
+                        {/if}
+                        <p class="text-sm text-muted-foreground">
+                            {project.tasks.length} task{project.tasks.length !== 1 ? "s" : ""}
                         </p>
                     </div>
                 </div>
+                <div class="flex gap-2">
+                    {#if canManage}
+                        <Button href="/dashboard/tasks?new={project.id}">
+                            <Plus />
+                            New task
+                        </Button>
+                    {/if}
+                    {#if canDelete}
+                        <Button
+                            variant="outline"
+                            class="text-destructive hover:text-destructive"
+                            onclick={() => (showDeleteConfirm = true)}
+                        >
+                            <Trash2 />
+                            Delete
+                        </Button>
+                    {/if}
+                </div>
             </div>
-            {#if canDelete}
-                <Button
-                    variant="danger"
-                    onclick={() => (showDeleteConfirm = true)}
-                    >Delete Project</Button
-                >
-            {/if}
         </div>
 
         {#if project.tasks.length === 0}
-            <Card>
-                <EmptyState
-                    icon="✅"
-                    title="No tasks in this project"
-                    message="Create tasks from the Tasks page and assign them to this project"
-                    actionLabel="Go to Tasks"
-                    onaction={() => goto("/dashboard/tasks")}
-                />
-            </Card>
+            <EmptyState
+                icon={ListTodo}
+                title="No tasks in this project"
+                message={canManage ? "Add the first task to get this project moving." : "Tasks added to this project will show up here."}
+                actionLabel={canManage ? "Create task" : undefined}
+                onaction={canManage ? () => goto(`/dashboard/tasks?new=${projectId}`) : undefined}
+            />
         {:else}
-            <div class="tasks-list">
-                {#each project.tasks as task, i (task.id)}
-                    <div
-                        class="stagger-in"
-                        style="animation-delay: {i * 0.04}s"
-                    >
-                        <Card>
-                            <div class="task-row">
-                                <Badge
-                                    variant={statusVariant(task.status)}
-                                    size="md">{formatStatus(task.status)}</Badge
-                                >
-                                <span class="task-title">{task.title}</span>
-                                <div class="task-end">
-                                    {#if task.assignee}
-                                        <div class="assignee-chip">
-                                            <span class="assignee-avatar"
-                                                >{getInitial(
-                                                    task.assignee.email,
-                                                )}</span
-                                            >
-                                            <span class="assignee-name"
-                                                >{task.assignee.email.split(
-                                                    "@",
-                                                )[0]}</span
-                                            >
-                                        </div>
-                                    {:else}
-                                        <span class="unassigned"
-                                            >Unassigned</span
-                                        >
-                                    {/if}
-                                </div>
-                            </div>
-                        </Card>
-                    </div>
-                {/each}
-            </div>
+            {#each groups as group (group.value)}
+                <section class="grid gap-2">
+                    <h3 class="flex items-center gap-2 text-sm font-medium">
+                        <Badge variant={group.variant}>{group.label}</Badge>
+                        <span class="text-muted-foreground tabular-nums">{group.tasks.length}</span>
+                    </h3>
+                    <Card class="divide-y">
+                        {#each group.tasks as task (task.id)}
+                            <button
+                                class="flex w-full items-center gap-4 px-5 py-2.5 text-left transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-accent/50 focus-visible:bg-accent/50 focus-visible:outline-none"
+                                onclick={() => showTask(task.id)}
+                            >
+                                <span class="flex-1 truncate text-sm font-medium">{task.title}</span>
+                                {#if task.assignee}
+                                    <span class="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Avatar email={task.assignee.email} class="size-6 text-[10px]" />
+                                        <span class="hidden sm:inline">{task.assignee.email.split("@")[0]}</span>
+                                    </span>
+                                {:else}
+                                    <span class="text-sm text-muted-foreground italic">Unassigned</span>
+                                {/if}
+                            </button>
+                        {/each}
+                    </Card>
+                </section>
+            {/each}
         {/if}
     </div>
 {/if}
 
-<Modal
+<TaskSheet task={openTask} {users} me={data.user} onclose={() => (openTask = null)} onsaved={() => load()} />
+
+<Dialog
     open={showDeleteConfirm}
-    title="Delete Project"
+    title="Delete project?"
+    description="This deletes {project?.name ?? 'the project'} and all of its tasks. This can't be undone."
     onclose={() => (showDeleteConfirm = false)}
 >
-    <div class="delete-confirm">
-        <p>
-            This will permanently delete <strong>{project?.name}</strong> and all
-            its tasks. This action cannot be undone.
-        </p>
-        <div class="modal-actions">
-            <Button
-                variant="secondary"
-                onclick={() => (showDeleteConfirm = false)}>Cancel</Button
-            >
-            <Button variant="danger" loading={deleting} onclick={handleDelete}
-                >Delete Project</Button
-            >
-        </div>
+    <div class="flex justify-end gap-2">
+        <Button variant="outline" onclick={() => (showDeleteConfirm = false)}>Cancel</Button>
+        <Button variant="destructive" loading={deleting} onclick={handleDelete}>Delete project</Button>
     </div>
-</Modal>
-
-<style>
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 1.5rem;
-    }
-    .breadcrumb {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.82rem;
-        margin-bottom: 0.75rem;
-    }
-    .breadcrumb-link {
-        color: var(--text-muted);
-        transition: color var(--transition);
-    }
-    .breadcrumb-link:hover {
-        color: var(--accent);
-    }
-    .breadcrumb-sep {
-        color: var(--text-muted);
-        opacity: 0.5;
-    }
-    .breadcrumb-current {
-        color: var(--text-primary);
-        font-weight: 600;
-    }
-    .title-row {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-    .project-icon-lg {
-        width: 44px;
-        height: 44px;
-        border-radius: 12px;
-        background: rgba(108, 99, 255, 0.1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
-        flex-shrink: 0;
-    }
-    h1 {
-        font-size: 1.5rem;
-        font-weight: 700;
-    }
-    .subtitle {
-        color: var(--text-secondary);
-        font-size: 0.875rem;
-        margin-top: 0.1rem;
-    }
-
-    .tasks-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    .task-row {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-    .task-title {
-        flex: 1;
-        font-weight: 500;
-        font-size: 0.9rem;
-    }
-    .task-end {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    .assignee-chip {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.2rem 0.5rem 0.2rem 0.2rem;
-        border-radius: 100px;
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid var(--border);
-    }
-    .assignee-avatar {
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #6c63ff, #2dd4bf);
-        color: white;
-        font-size: 0.65rem;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .assignee-name {
-        font-size: 0.75rem;
-        color: var(--text-secondary);
-    }
-    .unassigned {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-        font-style: italic;
-    }
-    .delete-confirm p {
-        color: var(--text-secondary);
-        font-size: 0.9rem;
-        line-height: 1.6;
-        margin-bottom: 1.5rem;
-    }
-    .delete-confirm strong {
-        color: var(--text-primary);
-    }
-    .modal-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.75rem;
-    }
-</style>
+</Dialog>

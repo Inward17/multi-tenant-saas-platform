@@ -6,10 +6,10 @@ export type Theme = 'light' | 'dark' | 'system';
 const STORAGE_KEY = 'taskflow-theme';
 
 function getInitialTheme(): Theme {
-    if (!browser) return 'dark';
+    if (!browser) return 'system';
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
-    return 'dark';
+    return 'system';
 }
 
 function getSystemPreference(): 'light' | 'dark' {

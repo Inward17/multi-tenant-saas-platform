@@ -92,7 +92,7 @@ describe('AuthService', () => {
             });
 
             await service.register(dto);
-            expect(bcrypt.hash).toHaveBeenCalledWith('secret123', 10);
+            expect(bcrypt.hash).toHaveBeenCalledWith('secret123', 12);
         });
     });
 
@@ -118,6 +118,18 @@ describe('AuthService', () => {
             expect(result.user.email).toBe('alice@acme.com');
         });
 
+        it('should embed tokenVersion in the JWT', async () => {
+            prisma.user.findUnique.mockResolvedValue({
+                id: 'user-1', email: 'alice@acme.com', password: 'hashed-pw', role: 'OWNER',
+                organizationId: 'org-1', tokenVersion: 3, organization: { name: 'Acme' },
+            });
+            (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+            await service.login(dto);
+
+            expect(jwtService.sign).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-1', tv: 3 }));
+        });
+
         it('should throw UnauthorizedException for unknown email', async () => {
             prisma.user.findUnique.mockResolvedValue(null);
 
@@ -136,6 +148,32 @@ describe('AuthService', () => {
             (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
             await expect(service.login(dto)).rejects.toThrow(UnauthorizedException);
+        });
+    });
+
+    // ─── SESSION VALIDATION ──────────────────────────────────
+
+    describe('validateSession', () => {
+        const payload = { userId: 'user-1', organizationId: 'org-1', role: 'ADMIN', tv: 0 };
+
+        it('should return role from the DB, not the token', async () => {
+            prisma.user.findUnique.mockResolvedValue({ id: 'user-1', organizationId: 'org-1', role: 'MEMBER', tokenVersion: 0 });
+
+            const result = await service.validateSession(payload);
+
+            expect(result).toEqual({ userId: 'user-1', organizationId: 'org-1', role: 'MEMBER' });
+        });
+
+        it('should reject a revoked token', async () => {
+            prisma.user.findUnique.mockResolvedValue({ id: 'user-1', organizationId: 'org-1', role: 'ADMIN', tokenVersion: 1 });
+
+            expect(await service.validateSession(payload)).toBeNull();
+        });
+
+        it('should reject a deleted user', async () => {
+            prisma.user.findUnique.mockResolvedValue(null);
+
+            expect(await service.validateSession(payload)).toBeNull();
         });
     });
 

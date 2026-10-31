@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { goto } from "$app/navigation";
+    import { Folder, ListTodo, Plus, Search, Trash2, X } from "@lucide/svelte";
     import {
         getProjects,
         createProject,
@@ -11,8 +11,9 @@
     import { formatDate } from "$lib/utils/format";
     import Button from "$lib/components/ui/Button.svelte";
     import Card from "$lib/components/ui/Card.svelte";
-    import Modal from "$lib/components/ui/Modal.svelte";
+    import Dialog from "$lib/components/ui/Dialog.svelte";
     import Input from "$lib/components/ui/Input.svelte";
+    import { fieldClass } from "$lib/components/ui/Input.svelte";
     import EmptyState from "$lib/components/ui/EmptyState.svelte";
     import SkeletonLoader from "$lib/components/ui/SkeletonLoader.svelte";
     import type { LayoutData } from "../$types";
@@ -93,147 +94,98 @@
     <title>Projects — TaskFlow</title>
 </svelte:head>
 
-<div class="projects-page fade-in">
-    <div class="page-header">
+<div class="grid gap-6">
+    <div class="flex flex-wrap items-end justify-between gap-4">
         <div>
-            <h1>Projects</h1>
-            <p class="subtitle">
-                {projects.length} project{projects.length !== 1 ? "s" : ""} in your
-                workspace
+            <h2 class="text-2xl font-semibold tracking-tight">Projects</h2>
+            <p class="text-sm text-muted-foreground">
+                {projects.length} project{projects.length !== 1 ? "s" : ""} in your workspace
             </p>
         </div>
         {#if canCreate}
-            <Button variant="primary" onclick={() => (showCreate = true)}>
-                + New Project
+            <Button onclick={() => (showCreate = true)}>
+                <Plus />
+                New project
             </Button>
         {/if}
     </div>
 
-    <!-- Search -->
-    <div class="search-bar">
-        <svg
-            class="search-icon"
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-        >
-            <circle cx="11" cy="11" r="8" />
-            <path d="M21 21l-4.35-4.35" />
-        </svg>
+    <div class="relative max-w-sm">
+        <Search class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <input
-            class="search-input"
+            class="{fieldClass} pr-9 pl-9"
             type="text"
-            placeholder="Search projects by name..."
+            placeholder="Search projects..."
+            aria-label="Search projects"
             bind:value={searchQuery}
         />
         {#if searchQuery}
             <button
-                class="search-clear"
+                class="absolute top-1/2 right-2.5 -translate-y-1/2 rounded-sm text-muted-foreground hover:text-foreground"
                 onclick={() => (searchQuery = "")}
                 aria-label="Clear search"
             >
-                ✕
+                <X class="size-4" />
             </button>
         {/if}
     </div>
 
     {#if loading}
-        <SkeletonLoader variant="card" count={4} />
+        <SkeletonLoader variant="card" count={3} />
     {:else if filteredProjects.length === 0}
-        <Card>
-            <EmptyState
-                icon="📁"
-                title={searchQuery
-                    ? "No projects matching search"
-                    : "No projects yet"}
-                message={searchQuery
-                    ? `No results for "${searchQuery}"`
-                    : "Create your first project to start organizing tasks"}
-                actionLabel={!searchQuery && canCreate
-                    ? "Create Project"
-                    : undefined}
-                onaction={!searchQuery && canCreate
-                    ? () => (showCreate = true)
-                    : undefined}
-            />
-        </Card>
+        <EmptyState
+            icon={Folder}
+            title={searchQuery ? "No matching projects" : "No projects yet"}
+            message={searchQuery
+                ? `No results for "${searchQuery}"`
+                : "Create your first project to start organizing tasks."}
+            actionLabel={!searchQuery && canCreate ? "Create project" : undefined}
+            onaction={!searchQuery && canCreate ? () => (showCreate = true) : undefined}
+        />
     {:else}
-        <div class="projects-grid">
-            {#each filteredProjects as project, i (project.id)}
-                <div style="animation-delay: {i * 0.05}s" class="stagger-in">
-                    <Card
-                        hover
-                        onclick={() =>
-                            goto(`/dashboard/projects/${project.id}`)}
-                    >
-                        <div class="project-inner">
-                            <div class="project-header">
-                                <div class="project-icon">📁</div>
-                                <h3>{project.name}</h3>
-                            </div>
-                            <div class="project-stats">
-                                <span class="task-chip">
-                                    <svg
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                        ><path d="M9 11l3 3L22 4" /><path
-                                            d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"
-                                        /></svg
-                                    >
-                                    {project._count.tasks} task{project._count
-                                        .tasks !== 1
-                                        ? "s"
-                                        : ""}
-                                </span>
-                                <span class="date-chip">
-                                    {formatDate(project.createdAt)}
-                                </span>
-                            </div>
-                            <div class="project-footer">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onclick={(e) => {
-                                        e.stopPropagation();
-                                        goto(
-                                            `/dashboard/projects/${project.id}`,
-                                        );
-                                    }}
-                                >
-                                    View Details →
-                                </Button>
-                                {#if canDelete}
-                                    <Button
-                                        variant="danger"
-                                        size="sm"
-                                        onclick={(e) => {
-                                            e.stopPropagation();
-                                            showDeleteConfirm = project.id;
-                                        }}
-                                    >
-                                        Delete
-                                    </Button>
-                                {/if}
-                            </div>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {#each filteredProjects as project (project.id)}
+                <Card class="group relative flex flex-col gap-4 p-5 transition-colors hover:bg-accent/50">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <Folder class="size-5" />
                         </div>
-                    </Card>
-                </div>
+                        {#if canDelete}
+                            <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                class="relative z-10 text-muted-foreground hover:text-destructive"
+                                aria-label="Delete {project.name}"
+                                onclick={() => (showDeleteConfirm = project.id)}
+                            >
+                                <Trash2 />
+                            </Button>
+                        {/if}
+                    </div>
+                    <div>
+                        <!-- Stretched link makes the whole card clickable while keeping real link semantics -->
+                        <a
+                            href="/dashboard/projects/{project.id}"
+                            class="font-semibold after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:ring-[3px] focus-visible:after:ring-ring/50"
+                        >
+                            {project.name}
+                        </a>
+                        <p class="mt-1 text-xs text-muted-foreground">Created {formatDate(project.createdAt)}</p>
+                    </div>
+                    <div class="mt-auto flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <ListTodo class="size-4" />
+                        {project._count.tasks} task{project._count.tasks !== 1 ? "s" : ""}
+                    </div>
+                </Card>
             {/each}
         </div>
     {/if}
 </div>
 
-<!-- Create Modal -->
-<Modal
+<Dialog
     open={showCreate}
-    title="Create New Project"
+    title="New project"
+    description="Projects group related tasks together."
     onclose={() => (showCreate = false)}
 >
     <form
@@ -241,183 +193,30 @@
             e.preventDefault();
             handleCreate();
         }}
-        class="modal-form"
+        class="grid gap-4"
     >
         <Input
-            label="Project Name"
-            placeholder="e.g. Marketing Website"
+            label="Project name"
+            placeholder="e.g. Marketing website"
             bind:value={newName}
             required
             id="project-name"
         />
-        <div class="modal-actions">
-            <Button variant="secondary" onclick={() => (showCreate = false)}
-                >Cancel</Button
-            >
-            <Button variant="primary" type="submit" loading={creating}
-                >Create Project</Button
-            >
+        <div class="flex justify-end gap-2">
+            <Button variant="outline" onclick={() => (showCreate = false)}>Cancel</Button>
+            <Button type="submit" loading={creating}>Create project</Button>
         </div>
     </form>
-</Modal>
+</Dialog>
 
-<!-- Delete Confirmation Modal -->
-<Modal
+<Dialog
     open={!!showDeleteConfirm}
-    title="Delete Project"
+    title="Delete project?"
+    description="This deletes the project and all of its tasks. This can't be undone."
     onclose={() => (showDeleteConfirm = null)}
 >
-    <div class="delete-confirm">
-        <p>
-            This will permanently delete this project and all its tasks. This
-            action cannot be undone.
-        </p>
-        <div class="modal-actions">
-            <Button
-                variant="secondary"
-                onclick={() => (showDeleteConfirm = null)}>Cancel</Button
-            >
-            <Button variant="danger" loading={deleting} onclick={confirmDelete}
-                >Delete Project</Button
-            >
-        </div>
+    <div class="flex justify-end gap-2">
+        <Button variant="outline" onclick={() => (showDeleteConfirm = null)}>Cancel</Button>
+        <Button variant="destructive" loading={deleting} onclick={confirmDelete}>Delete project</Button>
     </div>
-</Modal>
-
-<style>
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 1.5rem;
-    }
-    .page-header h1 {
-        font-size: 1.5rem;
-        font-weight: 700;
-    }
-    .subtitle {
-        color: var(--text-secondary);
-        margin-top: 0.2rem;
-        font-size: 0.875rem;
-    }
-
-    /* Search */
-    .search-bar {
-        position: relative;
-        display: flex;
-        align-items: center;
-        margin-bottom: 1.5rem;
-    }
-    .search-icon {
-        position: absolute;
-        left: 0.75rem;
-        color: var(--text-muted);
-        pointer-events: none;
-    }
-    .search-input {
-        width: 100%;
-        padding: 0.6rem 2.25rem 0.6rem 2.25rem;
-        background: var(--bg-input);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        color: var(--text-primary);
-        font-family: inherit;
-        font-size: 0.85rem;
-        transition:
-            border-color var(--transition),
-            box-shadow var(--transition);
-    }
-    .search-input::placeholder {
-        color: var(--text-muted);
-    }
-    .search-input:focus {
-        outline: none;
-        border-color: var(--accent);
-        box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
-    }
-    .search-clear {
-        position: absolute;
-        right: 0.5rem;
-        background: none;
-        border: none;
-        color: var(--text-muted);
-        cursor: pointer;
-        padding: 0.25rem 0.4rem;
-        font-size: 0.75rem;
-        border-radius: 4px;
-        transition: all var(--transition);
-    }
-    .search-clear:hover {
-        color: var(--text-primary);
-        background: rgba(255, 255, 255, 0.06);
-    }
-
-    .projects-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 1rem;
-    }
-    .project-inner {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    .project-header {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-    .project-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        background: rgba(108, 99, 255, 0.1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-    }
-    .project-header h3 {
-        font-size: 1rem;
-        font-weight: 600;
-    }
-    .project-stats {
-        display: flex;
-        gap: 0.75rem;
-    }
-    .task-chip,
-    .date-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        font-size: 0.75rem;
-        color: var(--text-secondary);
-        background: rgba(255, 255, 255, 0.03);
-        padding: 0.25rem 0.6rem;
-        border-radius: 100px;
-        border: 1px solid var(--border);
-    }
-    .project-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-top: 0.25rem;
-    }
-
-    .modal-form {
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
-    }
-    .modal-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.75rem;
-    }
-    .delete-confirm p {
-        color: var(--text-secondary);
-        font-size: 0.9rem;
-        line-height: 1.6;
-        margin-bottom: 1.5rem;
-    }
-</style>
+</Dialog>

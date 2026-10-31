@@ -60,7 +60,7 @@ export class TasksRepository {
 
     async findById(id: string, organizationId: string) {
         return this.prisma.task.findFirst({
-            where: { id, organizationId },
+            where: { id, organizationId, deletedAt: null } as any,
         });
     }
 
@@ -89,7 +89,7 @@ export class TasksRepository {
 
     async findProjectInOrg(projectId: string, organizationId: string) {
         return this.prisma.project.findFirst({
-            where: { id: projectId, organizationId },
+            where: { id: projectId, organizationId, deletedAt: null } as any,
         });
     }
 

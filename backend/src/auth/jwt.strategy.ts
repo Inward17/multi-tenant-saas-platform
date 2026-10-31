@@ -1,25 +1,29 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
+import { ConfigService } from '@nestjs/config';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Request } from 'express';
+import { AuthService, JwtPayload } from './auth.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-    constructor() {
+    constructor(
+        config: ConfigService,
+        private authService: AuthService,
+    ) {
         super({
             jwtFromRequest: ExtractJwt.fromExtractors([
                 (req: Request) => req?.cookies?.access_token,
             ]),
             ignoreExpiration: false,
-            secretOrKey: process.env.JWT_SECRET || 'saas-backend-jwt-secret-key-2026',
+            secretOrKey: config.getOrThrow<string>('JWT_SECRET'),
         });
     }
 
-    async validate(payload: { userId: string; organizationId: string; role: string }) {
-        return {
-            userId: payload.userId,
-            organizationId: payload.organizationId,
-            role: payload.role,
-        };
+    // Role and org come from the DB, not the token, so demotions and removals apply immediately
+    async validate(payload: JwtPayload) {
+        const user = await this.authService.validateSession(payload);
+        if (!user) throw new UnauthorizedException('Session expired');
+        return user;
     }
 }

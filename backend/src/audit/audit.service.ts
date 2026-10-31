@@ -29,8 +29,8 @@ export class AuditService {
         organizationId: string,
         query: { page?: number; limit?: number },
     ) {
-        const page = query.page || 1;
-        const limit = query.limit || 20;
+        const page = Math.max(Math.floor(query.page || 1), 1);
+        const limit = Math.min(Math.max(Math.floor(query.limit || 20), 1), 100);
         const skip = (page - 1) * limit;
 
         const [data, total] = await Promise.all([

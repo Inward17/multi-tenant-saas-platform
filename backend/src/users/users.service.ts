@@ -148,7 +148,8 @@ export class UsersService {
         const hashedPassword = await bcrypt.hash(dto.newPassword, 12);
         await this.prisma.user.update({
             where: { id: userId },
-            data: { password: hashedPassword },
+            // Changing the password signs out every existing session
+            data: { password: hashedPassword, tokenVersion: { increment: 1 } },
         });
 
         await this.audit.log({

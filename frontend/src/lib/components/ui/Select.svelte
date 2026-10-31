@@ -1,18 +1,20 @@
 <script lang="ts">
+    import type { HTMLSelectAttributes } from "svelte/elements";
+    import { ChevronDown } from "@lucide/svelte";
+    import { cn } from "$lib/utils";
+
     interface Option {
         value: string;
         label: string;
     }
 
-    interface Props {
+    type Props = Omit<HTMLSelectAttributes, "value" | "size"> & {
         label?: string;
-        id?: string;
         value?: string;
         options: Option[];
         placeholder?: string;
-        disabled?: boolean;
-        size?: "sm" | "md";
-    }
+        size?: "default" | "sm";
+    };
 
     let {
         label,
@@ -20,72 +22,35 @@
         value = $bindable(""),
         options,
         placeholder,
-        disabled = false,
-        size = "md",
+        size = "default",
+        class: className,
+        ...rest
     }: Props = $props();
 </script>
 
-<div class="select-group">
+<div class={cn("grid gap-2", className)}>
     {#if label}
-        <label for={id}>{label}</label>
+        <label for={id} class="text-sm leading-none font-medium">{label}</label>
     {/if}
-    <select {id} bind:value class="select select-{size}" {disabled}>
-        {#if placeholder}
-            <option value="">{placeholder}</option>
-        {/if}
-        {#each options as opt}
-            <option value={opt.value}>{opt.label}</option>
-        {/each}
-    </select>
+    <div class="relative">
+        <select
+            {id}
+            bind:value
+            class={cn(
+                "w-full appearance-none rounded-md border border-input bg-transparent pr-8 pl-3 shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
+                size === "sm" ? "h-8 text-xs" : "h-9 text-sm",
+            )}
+            {...rest}
+        >
+            {#if placeholder}
+                <option value="">{placeholder}</option>
+            {/if}
+            {#each options as opt (opt.value)}
+                <option value={opt.value}>{opt.label}</option>
+            {/each}
+        </select>
+        <ChevronDown
+            class="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+        />
+    </div>
 </div>
-
-<style>
-    .select-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.4rem;
-    }
-    .select-group label {
-        font-size: 0.8rem;
-        font-weight: 500;
-        color: var(--text-secondary);
-    }
-    .select {
-        background: var(--bg-input);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        color: var(--text-primary);
-        font-family: inherit;
-        width: 100%;
-        cursor: pointer;
-        transition:
-            border-color var(--transition),
-            box-shadow var(--transition);
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238888aa' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 0.75rem center;
-        padding-right: 2rem;
-    }
-    .select-md {
-        padding: 0.75rem 1rem;
-        font-size: 0.875rem;
-    }
-    .select-sm {
-        padding: 0.35rem 0.5rem;
-        font-size: 0.75rem;
-        border-radius: var(--radius-xs);
-    }
-    .select:hover:not(:disabled) {
-        border-color: var(--accent);
-    }
-    .select:focus {
-        outline: none;
-        border-color: var(--accent);
-        box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
-    }
-    .select:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-</style>

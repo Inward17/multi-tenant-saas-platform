@@ -1,6 +1,13 @@
 <script lang="ts">
-    import { goto } from "$app/navigation";
+    import { ArrowRight, FolderKanban, Layers, ListTodo, ShieldCheck, Users } from "@lucide/svelte";
     import Button from "$lib/components/ui/Button.svelte";
+
+    const features = [
+        { icon: FolderKanban, title: "Projects", desc: "Organize work into focused projects." },
+        { icon: ListTodo, title: "Tasks", desc: "Assign, track and update work in real time." },
+        { icon: Users, title: "Teams", desc: "Owner, admin and member roles for every workspace." },
+        { icon: ShieldCheck, title: "Secure", desc: "Isolated workspaces and httpOnly cookie sessions." },
+    ];
 </script>
 
 <svelte:head>
@@ -11,193 +18,55 @@
     />
 </svelte:head>
 
-<div class="landing">
-    <nav class="landing-nav">
-        <div class="nav-brand">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                <rect width="24" height="24" rx="6" fill="url(#lg)" />
-                <path
-                    d="M7 13l3 3 7-7"
-                    stroke="white"
-                    stroke-width="2.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                />
-                <defs
-                    ><linearGradient id="lg" x1="0" y1="0" x2="24" y2="24"
-                        ><stop stop-color="#6c63ff" /><stop
-                            offset="1"
-                            stop-color="#2dd4bf"
-                        /></linearGradient
-                    ></defs
-                >
-            </svg>
-            <span>TaskFlow</span>
-        </div>
-        <div class="nav-actions">
-            <Button variant="ghost" onclick={() => goto("/login")}
-                >Sign In</Button
-            >
-            <Button
-                variant="primary"
-                size="sm"
-                onclick={() => goto("/register")}>Get Started</Button
-            >
-        </div>
-    </nav>
+<div class="relative min-h-dvh overflow-hidden">
+    <div
+        class="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[32rem] bg-[radial-gradient(60%_60%_at_50%_0%,color-mix(in_oklch,var(--primary)_18%,transparent),transparent)]"
+    ></div>
 
-    <div class="hero fade-in">
-        <div class="hero-badge">Multi-Tenant SaaS Platform</div>
-        <h1>
-            Task Management<br /><span class="gradient-text"
-                >Built for Teams</span
-            >
-        </h1>
-        <p class="hero-sub">
-            Organize projects, assign tasks, and manage roles — all in one
-            modern platform with real-time multi-tenancy and role-based access
-            control.
-        </p>
-        <div class="hero-cta">
-            <Button
-                variant="primary"
-                size="lg"
-                onclick={() => goto("/register")}>Get Started Free</Button
-            >
-            <Button variant="secondary" size="lg" onclick={() => goto("/login")}
-                >Sign In</Button
-            >
-        </div>
-    </div>
+    <header class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <a href="/" class="flex items-center gap-2 font-semibold">
+            <span class="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                <Layers class="size-4" />
+            </span>
+            TaskFlow
+        </a>
+        <nav class="flex items-center gap-2">
+            <Button variant="ghost" href="/login">Sign in</Button>
+            <Button href="/register">Get started</Button>
+        </nav>
+    </header>
 
-    <div class="features fade-in">
-        {#each [{ icon: "📁", title: "Projects", desc: "Organize work into focused projects" }, { icon: "✅", title: "Tasks", desc: "Assign, track, and manage tasks" }, { icon: "👥", title: "Teams", desc: "Role-based access for every member" }, { icon: "🔒", title: "Secure", desc: "Enterprise-grade cookie-based auth" }] as feature}
-            <div class="feature-card">
-                <span class="feature-icon">{feature.icon}</span>
-                <h3>{feature.title}</h3>
-                <p>{feature.desc}</p>
+    <main class="mx-auto max-w-6xl px-4 sm:px-6">
+        <section class="mx-auto flex max-w-3xl animate-fade-in flex-col items-center py-20 text-center sm:py-28">
+            <span class="mb-6 rounded-full border bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
+                Multi-tenant · Role-based · Real-time
+            </span>
+            <h1 class="text-4xl font-bold tracking-tight text-balance sm:text-6xl">
+                Task management <span class="text-primary">built for teams</span>
+            </h1>
+            <p class="mt-6 max-w-xl text-lg text-pretty text-muted-foreground">
+                Organize projects, assign tasks and manage roles in one workspace, with live updates for
+                everyone on your team.
+            </p>
+            <div class="mt-10 flex flex-col gap-3 sm:flex-row">
+                <Button size="lg" href="/register">
+                    Create a workspace
+                    <ArrowRight />
+                </Button>
+                <Button size="lg" variant="outline" href="/login">Sign in</Button>
             </div>
-        {/each}
-    </div>
+        </section>
+
+        <section class="grid gap-4 pb-24 sm:grid-cols-2 lg:grid-cols-4">
+            {#each features as feature (feature.title)}
+                <div class="rounded-xl border bg-card p-6 shadow-xs">
+                    <div class="mb-4 flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <feature.icon class="size-5" />
+                    </div>
+                    <h3 class="font-semibold">{feature.title}</h3>
+                    <p class="mt-1 text-sm text-muted-foreground">{feature.desc}</p>
+                </div>
+            {/each}
+        </section>
+    </main>
 </div>
-
-<style>
-    .landing {
-        min-height: 100vh;
-        background: radial-gradient(
-                ellipse at 30% 0%,
-                rgba(108, 99, 255, 0.1) 0%,
-                transparent 50%
-            ),
-            radial-gradient(
-                ellipse at 70% 100%,
-                rgba(45, 212, 191, 0.08) 0%,
-                transparent 50%
-            ),
-            var(--bg-primary);
-    }
-
-    .landing-nav {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1.25rem 2rem;
-        max-width: 1100px;
-        margin: 0 auto;
-    }
-    .nav-brand {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        font-weight: 800;
-        font-size: 1.1rem;
-    }
-    .nav-actions {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .hero {
-        text-align: center;
-        padding: 4rem 2rem 3rem;
-        max-width: 700px;
-        margin: 0 auto;
-    }
-    .hero-badge {
-        display: inline-block;
-        background: rgba(108, 99, 255, 0.1);
-        color: var(--accent);
-        padding: 0.35rem 1rem;
-        border-radius: 100px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        margin-bottom: 1.5rem;
-        border: 1px solid rgba(108, 99, 255, 0.15);
-    }
-    .hero h1 {
-        font-size: 3rem;
-        font-weight: 800;
-        line-height: 1.15;
-        margin-bottom: 1.25rem;
-        letter-spacing: -0.5px;
-    }
-    .gradient-text {
-        background: linear-gradient(135deg, #6c63ff 0%, #2dd4bf 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-    .hero-sub {
-        color: var(--text-secondary);
-        font-size: 1.1rem;
-        line-height: 1.7;
-        margin-bottom: 2.5rem;
-        max-width: 520px;
-        margin-left: auto;
-        margin-right: auto;
-    }
-    .hero-cta {
-        display: flex;
-        gap: 0.75rem;
-        justify-content: center;
-    }
-
-    .features {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 1rem;
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 2rem;
-    }
-    .feature-card {
-        text-align: center;
-        padding: 1.5rem 1rem;
-        border-radius: 16px;
-        border: 1px solid var(--border);
-        background: var(--bg-card);
-        transition: all var(--transition);
-    }
-    .feature-card:hover {
-        border-color: var(--border-hover);
-        transform: translateY(-2px);
-    }
-    .feature-icon {
-        font-size: 1.75rem;
-        display: block;
-        margin-bottom: 0.75rem;
-    }
-    .feature-card h3 {
-        font-size: 0.9rem;
-        font-weight: 600;
-        margin-bottom: 0.3rem;
-    }
-    .feature-card p {
-        font-size: 0.8rem;
-        color: var(--text-secondary);
-        line-height: 1.4;
-    }
-</style>

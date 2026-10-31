@@ -1,71 +1,27 @@
+<script lang="ts" module>
+    export const fieldClass =
+        "flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30";
+</script>
+
 <script lang="ts">
-    interface Props {
-        label?: string;
-        type?: string;
-        placeholder?: string;
-        value: string;
-        required?: boolean;
-        minlength?: number;
-        id?: string;
-        oninput?: (e: Event) => void;
-    }
+    import type { HTMLInputAttributes } from "svelte/elements";
+    import { cn } from "$lib/utils";
+
+    type Props = Omit<HTMLInputAttributes, "value"> & { label?: string; value?: string };
 
     let {
         label,
-        type = "text",
-        placeholder = "",
-        value = $bindable(),
-        required = false,
-        minlength,
         id,
-        oninput,
+        type = "text",
+        value = $bindable(""),
+        class: className,
+        ...rest
     }: Props = $props();
 </script>
 
-<div class="input-group">
+<div class={cn("grid gap-2", className)}>
     {#if label}
-        <label for={id}>{label}</label>
+        <label for={id} class="text-sm leading-none font-medium">{label}</label>
     {/if}
-    <input
-        {id}
-        {type}
-        {placeholder}
-        {required}
-        {minlength}
-        bind:value
-        {oninput}
-    />
+    <input {id} {type} bind:value class={fieldClass} {...rest} />
 </div>
-
-<style>
-    .input-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.4rem;
-    }
-    label {
-        font-size: 0.8rem;
-        font-weight: 500;
-        color: var(--text-secondary);
-        letter-spacing: 0.2px;
-    }
-    input {
-        background: var(--bg-input);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 0.75rem 1rem;
-        color: var(--text-primary);
-        font-family: inherit;
-        font-size: 0.875rem;
-        width: 100%;
-        transition: all 0.2s;
-    }
-    input:focus {
-        outline: none;
-        border-color: var(--accent);
-        box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
-    }
-    input::placeholder {
-        color: rgba(153, 153, 187, 0.5);
-    }
-</style>

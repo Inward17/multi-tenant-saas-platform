@@ -72,10 +72,11 @@ export class ProjectsService {
         });
         if (!project) throw new NotFoundException('Project not found');
 
-        await this.prisma.project.update({
-            where: { id },
-            data: { deletedAt: new Date() } as any,
-        });
+        const deletedAt = new Date();
+        await this.prisma.$transaction([
+            this.prisma.project.update({ where: { id }, data: { deletedAt } as any }),
+            this.prisma.task.updateMany({ where: { projectId: id, deletedAt: null } as any, data: { deletedAt } as any }),
+        ]);
 
         const performer = userId
             ? await this.prisma.user.findUnique({ where: { id: userId }, select: { email: true } })

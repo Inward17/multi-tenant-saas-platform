@@ -1,4 +1,7 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+import { env } from '$env/dynamic/public';
+
+// VITE_API_BASE is the build-time name existing deployments (Vercel) already set
+export const API_BASE = env.PUBLIC_API_URL || import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
 interface FetchOptions {
     method?: string;
@@ -15,13 +18,20 @@ async function api<T>(endpoint: string, options: FetchOptions = {}): Promise<T> 
         url += `?${searchParams}`;
     }
 
+    // X-Requested-With is required by the API's CSRF check on non-GET requests
+    const headers: Record<string, string> = { 'X-Requested-With': 'XMLHttpRequest' };
+    if (body) headers['Content-Type'] = 'application/json';
+
     const res = await fetch(url, {
         method,
-        headers: body ? { 'Content-Type': 'application/json' } : {},
+        headers,
         body: body ? JSON.stringify(body) : undefined,
         credentials: 'include',
     });
 
+    if (res.status === 429) {
+        throw { status: 429, message: 'Too many requests. Wait a moment and try again.' };
+    }
     if (!res.ok) {
         const error = await res.json().catch(() => ({ message: 'Request failed' }));
         throw { status: res.status, message: error.message || 'Request failed' };
