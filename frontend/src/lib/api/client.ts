@@ -29,6 +29,9 @@ async function api<T>(endpoint: string, options: FetchOptions = {}): Promise<T> 
         credentials: 'include',
     });
 
+    if (res.status === 429) {
+        throw { status: 429, message: 'Too many requests. Wait a moment and try again.' };
+    }
     if (!res.ok) {
         const error = await res.json().catch(() => ({ message: 'Request failed' }));
         throw { status: res.status, message: error.message || 'Request failed' };

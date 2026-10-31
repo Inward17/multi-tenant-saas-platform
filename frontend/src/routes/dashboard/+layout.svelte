@@ -12,6 +12,7 @@
         Menu,
         Monitor,
         Moon,
+        Settings,
         Sun,
         UserRound,
         Users,
@@ -51,10 +52,13 @@
         { href: "/dashboard/team", label: "Team", icon: Users },
         { href: "/dashboard/activity", label: "Activity", icon: Activity, adminOnly: true },
         { href: "/dashboard/profile", label: "Profile", icon: UserRound },
+        { href: "/dashboard/settings", label: "Settings", icon: Settings, ownerOnly: true },
     ];
 
     const visibleNav = $derived(
-        navItems.filter((i) => !i.adminOnly || data.user.role !== "MEMBER"),
+        navItems.filter(
+            (i) => (!i.adminOnly || data.user.role !== "MEMBER") && (!i.ownerOnly || data.user.role === "OWNER"),
+        ),
     );
 
     function isActive(href: string) {
@@ -169,7 +173,8 @@
             >
                 <Menu />
             </Button>
-            <h1 class="text-base font-semibold">{pageTitle}</h1>
+            <!-- Desktop shows the active section in the sidebar and as the page heading -->
+            <h1 class="text-base font-semibold lg:sr-only">{pageTitle}</h1>
 
             <div class="ml-auto flex items-center gap-2">
                 <span

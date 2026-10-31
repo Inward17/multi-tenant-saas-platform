@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
     import { X } from "@lucide/svelte";
+    import { cn } from "$lib/utils";
 
     interface Props {
         open: boolean;
@@ -8,9 +9,10 @@
         description?: string;
         onclose: () => void;
         children: Snippet;
+        class?: string;
     }
 
-    let { open, title, description, onclose, children }: Props = $props();
+    let { open, title, description, onclose, children, class: className }: Props = $props();
     let dialog: HTMLDialogElement;
     const titleId = `dialog-${Math.random().toString(36).slice(2)}`;
 
@@ -26,7 +28,10 @@
     {onclose}
     onclick={(e) => e.target === dialog && onclose()}
     aria-labelledby={titleId}
-    class="m-auto w-[calc(100%-2rem)] max-w-lg rounded-xl border bg-background p-0 text-foreground shadow-lg backdrop:bg-black/60 backdrop:backdrop-blur-[2px] open:animate-fade-in"
+    class={cn(
+        "m-auto w-[calc(100%-2rem)] max-w-lg rounded-xl border bg-background p-0 text-foreground shadow-lg backdrop:bg-black/60 backdrop:backdrop-blur-[2px] open:animate-fade-in",
+        className,
+    )}
 >
     <div class="grid gap-4 p-6">
         <div class="grid gap-1.5 pr-8">

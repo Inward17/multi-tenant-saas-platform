@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { untrack } from "svelte";
     import { goto } from "$app/navigation";
     import { updateProfile, changePassword } from "$lib/api/profile";
     import { logout } from "$lib/api/auth";
@@ -20,7 +21,7 @@
     let profile = $derived(data.profile);
 
     // ─── Email Update ────────────────────────────
-    let editEmail = $state(data.profile.email);
+    let editEmail = $state(untrack(() => data.profile.email));
     let emailSaving = $state(false);
 
     async function handleUpdateEmail() {

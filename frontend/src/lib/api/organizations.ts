@@ -10,3 +10,11 @@ export interface Organization {
 export function getOrganization() {
     return api<Organization>('/organizations');
 }
+
+export function updateOrganization(data: { name: string }) {
+    return api<Organization>('/organizations', { method: 'PATCH', body: data });
+}
+
+export function deleteOrganization() {
+    return api<{ message: string }>('/organizations', { method: 'DELETE' });
+}

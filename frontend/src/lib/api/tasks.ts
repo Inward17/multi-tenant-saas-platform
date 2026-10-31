@@ -13,12 +13,22 @@ export interface Task {
     assignee: { id: string; email: string } | null;
 }
 
+export type TaskStatus = Task['status'];
+
+export const TASK_STATUSES: { value: TaskStatus; label: string; variant: 'todo' | 'in-progress' | 'done' }[] = [
+    { value: 'TODO', label: 'To do', variant: 'todo' },
+    { value: 'IN_PROGRESS', label: 'In progress', variant: 'in-progress' },
+    { value: 'DONE', label: 'Done', variant: 'done' },
+];
+
+export const statusMeta = (s: string) => TASK_STATUSES.find((x) => x.value === s) ?? TASK_STATUSES[0];
+
 export interface TasksResponse {
     data: Task[];
     meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
-export function getTasks(params?: { page?: string; limit?: string; status?: string }) {
+export function getTasks(params?: { page?: string; limit?: string; status?: string; search?: string }) {
     const filteredParams: Record<string, string> = {};
     if (params) {
         Object.entries(params).forEach(([k, v]) => { if (v) filteredParams[k] = v; });

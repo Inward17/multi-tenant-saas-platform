@@ -89,6 +89,20 @@ export function onTaskDeleted(cb: Callback): () => void {
     };
 }
 
+/** Calls `cb` (debounced) after any task is created, updated or deleted, so views can refetch. */
+export function onAnyTaskChange(cb: () => void, delayMs = 250): () => void {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const fire = () => {
+        clearTimeout(timer);
+        timer = setTimeout(cb, delayMs);
+    };
+    const offs = [onTaskCreated(fire), onTaskUpdated(fire), onTaskDeleted(fire)];
+    return () => {
+        clearTimeout(timer);
+        offs.forEach((off) => off());
+    };
+}
+
 export function onActivity(cb: Callback): () => void {
     activityCallbacks.push(cb);
     return () => {
